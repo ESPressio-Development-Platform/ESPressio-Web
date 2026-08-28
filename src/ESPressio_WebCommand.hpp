@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <mutex>
 #include <new>
+#include <optional>
 
 #include <ESPressio_CommandEnvelope.hpp>
 #include <ESPressio_CommandEvents.hpp>
