@@ -29,6 +29,10 @@ add_executable(
     ../../ESPressio-Threads/src/ESPressio_ThreadTerminationDispatcher.cpp
 )
 add_executable(espressio_web_state_integration_tests test_web_state.cpp)
+add_executable(
+    espressio_web_implementor_example
+    ../examples/Implementors/MinimalHttpPlatform/main.cpp
+)
 
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
@@ -43,6 +47,7 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_event_integration_tests
     espressio_web_command_integration_tests
     espressio_web_state_integration_tests
+    espressio_web_implementor_example
 )
 
 foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
