@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string_view>
 
@@ -128,11 +129,12 @@ public:
     }
 
 private:
+    static constexpr std::size_t MaximumHandshakeHeaderCount = 64;
+
     static bool ContainsInvalidHeaderNameCharacter(std::string_view name) noexcept {
         if (name.empty()) return true;
         for (const unsigned char character : name) {
-            if (character <= 0x20 || character >= 0x7f ||
-                character == ':' || character == '\r' || character == '\n') {
+            if (character <= 0x20 || character >= 0x7f || character == ':') {
                 return true;
             }
         }
@@ -144,9 +146,19 @@ private:
                value.find('\n') != std::string_view::npos;
     }
 
-    static WebResult ValidateHeaders(const IWebClientHeaderSource* headers) noexcept {
+    static WebResult ValidateHeaders(
+        const IWebClientHeaderSource* headers,
+        std::size_t maximumBytes
+    ) noexcept {
         if (headers == nullptr) return WebResult::Success();
+        if (maximumBytes == 0) return WebResult::Failure(WebError::InvalidConfiguration);
+
         const std::size_t count = headers->Count();
+        if (count > MaximumHandshakeHeaderCount) {
+            return WebResult::Failure(WebError::ResourceExhausted);
+        }
+
+        std::size_t totalBytes = 0;
         for (std::size_t index = 0; index < count; ++index) {
             WebClientHeader header;
             if (!headers->Header(index, header) ||
@@ -154,6 +166,18 @@ private:
                 ContainsHeaderLineBreak(header.Value)) {
                 return WebResult::Failure(WebError::InvalidConfiguration);
             }
+
+            constexpr std::size_t FramingBytes = 4; // ": " + CRLF
+            if (header.Name.size() > std::numeric_limits<std::size_t>::max() - header.Value.size() ||
+                header.Name.size() + header.Value.size() >
+                    std::numeric_limits<std::size_t>::max() - FramingBytes) {
+                return WebResult::Failure(WebError::ResourceExhausted);
+            }
+            const std::size_t lineBytes = header.Name.size() + header.Value.size() + FramingBytes;
+            if (lineBytes > maximumBytes || totalBytes > maximumBytes - lineBytes) {
+                return WebResult::Failure(WebError::ResourceExhausted);
+            }
+            totalBytes += lineBytes;
         }
         return WebResult::Success();
     }
@@ -165,7 +189,8 @@ private:
             configuration.Port == 0 ||
             configuration.Path.empty() ||
             configuration.Path.front() != '/' ||
-            configuration.Policy.NetworkTimeoutMilliseconds == 0) {
+            configuration.Policy.NetworkTimeoutMilliseconds == 0 ||
+            configuration.Policy.MaximumHandshakeHeaderBytes == 0) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
 
@@ -178,7 +203,10 @@ private:
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
 
-        const auto headerValidation = ValidateHeaders(configuration.Headers);
+        const auto headerValidation = ValidateHeaders(
+            configuration.Headers,
+            configuration.Policy.MaximumHandshakeHeaderBytes
+        );
         if (!headerValidation) return headerValidation;
 
         if (configuration.Transport == WebTransportMode::Tls) {
