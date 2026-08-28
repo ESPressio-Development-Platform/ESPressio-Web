@@ -5,6 +5,7 @@
 #include <memory>
 #include <string_view>
 
+#include <ESPressio_Memory.hpp>
 #include <ESPressio_ThreadSafeObservable.hpp>
 
 #include "ESPressio_WebSocket.hpp"
@@ -67,7 +68,12 @@ private:
 
 public:
     WebSocketClient()
-        : _observable(std::make_shared<ClientObservable>()) {}
+        : _observable(
+            System::Memory::MakeShared<
+                ClientObservable,
+                System::Memory::MemoryPolicy::ExternalPreferred
+            >()
+          ) {}
 
     explicit WebSocketClient(IWebSocketClientPlatform& platform)
         : WebSocketClient() {
