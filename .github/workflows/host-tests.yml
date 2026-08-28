@@ -10,9 +10,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check out ESPressio System working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: feature/1-system-memory-policy
+          path: ESPressio-System
+      - name: Check out ESPressio Observable working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: feature/16-rtti-free-observer-registry
+          path: ESPressio-Observable
       - name: Configure
         run: cmake -S tests -B build/tests
       - name: Build
         run: cmake --build build/tests --parallel
       - name: Run
-        run: ./build/tests/espressio_web_core_include
+        run: ctest --test-dir build/tests --output-on-failure
