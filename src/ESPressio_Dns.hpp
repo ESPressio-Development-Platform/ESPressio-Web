@@ -429,9 +429,6 @@ public:
         uint32_t ttlSeconds = 60
     ) : _address(address), _ttlSeconds(ttlSeconds) {}
 
-    void SetAddress(DnsAddress address) noexcept { _address = address; }
-    void SetTtlSeconds(uint32_t ttlSeconds) noexcept { _ttlSeconds = ttlSeconds; }
-
     DnsHandlerResult Handle(DnsRequestContext& context) override {
         const auto type = context.Request().Type();
         const bool compatible =
@@ -447,8 +444,8 @@ public:
     }
 
 private:
-    DnsAddress _address;
-    uint32_t _ttlSeconds;
+    const DnsAddress _address;
+    const uint32_t _ttlSeconds;
 };
 
 } // namespace ESPressio::Web
