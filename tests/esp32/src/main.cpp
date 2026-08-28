@@ -56,6 +56,12 @@ void setup() {
     ESPressio::Web::WebSocketEndpointConfiguration webSocketConfiguration;
     webSocketConfiguration.Path = "/application/socket";
     webSocketConfiguration.Protocol = "espressio.v1";
+
+    // Exercise the provider's retired-state lifecycle before the HTTP server
+    // starts. A later bind must use a fresh native binding state rather than
+    // reactivating a handler state that has already been released.
+    (void)webSocketEndpoint.Bind(webSocketConfiguration);
+    (void)webSocketEndpoint.Unbind();
     (void)webSocketEndpoint.Bind(webSocketConfiguration);
 
     (void)httpServer.SetRequestHandler(&application);
