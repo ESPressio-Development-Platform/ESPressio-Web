@@ -21,6 +21,9 @@ add_executable(espressio_web_resource_tests test_resources.cpp)
 add_executable(espressio_web_persistence_resource_tests test_persistence_resources.cpp)
 add_executable(espressio_web_dns_tests test_dns.cpp)
 add_executable(espressio_web_service_tests test_service.cpp)
+add_executable(espressio_web_event_integration_tests test_web_event.cpp)
+add_executable(espressio_web_command_integration_tests test_web_command.cpp)
+add_executable(espressio_web_state_integration_tests test_web_state.cpp)
 
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
@@ -32,6 +35,9 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_persistence_resource_tests
     espressio_web_dns_tests
     espressio_web_service_tests
+    espressio_web_event_integration_tests
+    espressio_web_command_integration_tests
+    espressio_web_state_integration_tests
 )
 
 foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
@@ -41,6 +47,22 @@ endforeach()
 
 target_include_directories(espressio_web_persistence_resource_tests PRIVATE
     ../../ESPressio-Persistence/src
+)
+
+target_include_directories(espressio_web_event_integration_tests PRIVATE
+    ../../ESPressio-Event/src
+)
+
+target_include_directories(espressio_web_command_integration_tests PRIVATE
+    ../../ESPressio-Command/src
+    ../../ESPressio-Event/src
+    ../../ESPressio-Threads/src
+    ../../ESPressio-Timing/src
+    ../../ESPressio-Units/src
+)
+
+target_include_directories(espressio_web_state_integration_tests PRIVATE
+    ../../ESPressio-State/src
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
