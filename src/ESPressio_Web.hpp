@@ -7,6 +7,7 @@
 #include "ESPressio_WebTypes.hpp"
 #include "ESPressio_Http.hpp"
 #include "ESPressio_HttpServer.hpp"
+#include "ESPressio_Router.hpp"
 #include "ESPressio_WebSocket.hpp"
 #include "ESPressio_WebSocketEndpoint.hpp"
 #include "ESPressio_WebSocketClient.hpp"
