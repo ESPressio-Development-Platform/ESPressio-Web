@@ -26,6 +26,14 @@ RootHandler root;
 ESPressio::Web::ESP32WebSocketEndpointPlatform webSocketPlatform(httpPlatform);
 ESPressio::Web::WebSocketEndpoint webSocketEndpoint(webSocketPlatform);
 
+// The pinned Arduino-ESP32 2.0.17 framework includes IDF 4.4's native
+// esp_websocket_client component. Instantiating the concrete client here and
+// retaining a runtime-reachable Connect() path forces both compilation and
+// linkage of the optional ESP32 client provider without making a network
+// connection during normal CI execution.
+ESPressio::Web::ESP32WebSocketClientPlatform webSocketClientPlatform;
+ESPressio::Web::WebSocketClient webSocketClient(webSocketClientPlatform);
+
 ESPressio::Web::ESP32DnsServerPlatform dnsPlatform;
 ESPressio::Web::DnsServer dnsServer(dnsPlatform);
 ESPressio::Web::WildcardDnsHandler wildcardDns(
@@ -76,6 +84,16 @@ void setup() {
     dnsConfiguration.Port = 53;
     (void)dnsServer.Initialize(dnsConfiguration);
     (void)dnsServer.Start();
+
+    // millis() keeps this branch runtime-reachable so LTO cannot prove away
+    // the client's Connect implementation. It is false during ordinary boot.
+    if (millis() == UINT32_MAX) {
+        ESPressio::Web::WebSocketClientConfiguration clientConfiguration;
+        clientConfiguration.Host = "127.0.0.1";
+        clientConfiguration.Port = 80;
+        clientConfiguration.Path = "/compile-only";
+        (void)webSocketClient.Connect(clientConfiguration);
+    }
 }
 
 void loop() {}
