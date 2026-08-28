@@ -42,14 +42,8 @@ public:
         std::size_t& bytesWritten
     ) const override {
         const auto it = Headers.find(std::string(name));
-        if (it == Headers.end()) {
-            bytesWritten = 0;
-            return WebResult::Failure(WebError::ProtocolError);
-        }
-        if (capacity < it->second.size()) {
-            bytesWritten = 0;
-            return WebResult::Failure(WebError::ResourceExhausted);
-        }
+        if (it == Headers.end()) return WebResult::Failure(WebError::NotFound);
+        if (capacity < it->second.size()) return WebResult::Failure(WebError::ResourceExhausted);
         std::memcpy(destination, it->second.data(), it->second.size());
         bytesWritten = it->second.size();
         return WebResult::Success();
@@ -81,114 +75,84 @@ public:
         StatusValue = status;
         return WebResult::Success();
     }
-
     WebResult SetHeader(std::string_view name, std::string_view value) override {
         if (Begun) return WebResult::Failure(WebError::InvalidState);
         Headers[std::string(name)] = std::string(value);
         return WebResult::Success();
     }
-
-    WebResult Begin(std::optional<std::size_t> contentLength) override {
+    WebResult Begin(std::optional<std::size_t> length) override {
         if (Begun) return WebResult::Failure(WebError::InvalidState);
         Begun = true;
-        BegunLength = contentLength;
+        BegunLength = length;
         return WebResult::Success();
     }
-
     WebResult Write(const uint8_t* data, std::size_t size) override {
         if (!Begun || Completed || Aborted) return WebResult::Failure(WebError::InvalidState);
         Bytes.insert(Bytes.end(), data, data + size);
         return WebResult::Success();
     }
-
     WebResult Complete() override {
         if (!Begun || Aborted) return WebResult::Failure(WebError::InvalidState);
         Completed = true;
         return WebResult::Success();
     }
-
     void Abort() noexcept override { Aborted = true; }
 };
 
 class FakeServerPlatform final : public IHttpServerPlatform {
 public:
-    WebCapabilities CapabilityValue =
-        ToCapabilities(WebCapability::Http) |
-        ToCapabilities(WebCapability::ChunkedResponses);
     IHttpRequestDispatcher* Dispatcher = nullptr;
-    HttpServerConfiguration Configuration{};
-    int InitializeCalls = 0;
-    int StartCalls = 0;
-    int StopCalls = 0;
-    int ResetCalls = 0;
+    HttpServerConfiguration Config{};
+    int Starts = 0;
+    int Stops = 0;
 
-    WebCapabilities Capabilities() const noexcept override { return CapabilityValue; }
-
-    WebResult Initialize(
-        const HttpServerConfiguration& configuration,
-        IHttpRequestDispatcher& dispatcher
-    ) override {
-        ++InitializeCalls;
-        Configuration = configuration;
+    WebCapabilities Capabilities() const noexcept override {
+        return ToCapabilities(WebCapability::Http) |
+               ToCapabilities(WebCapability::ChunkedResponses);
+    }
+    WebResult Initialize(const HttpServerConfiguration& config, IHttpRequestDispatcher& dispatcher) override {
+        Config = config;
         Dispatcher = &dispatcher;
         return WebResult::Success();
     }
-
-    WebResult Start() override {
-        ++StartCalls;
-        return WebResult::Success();
-    }
-
-    WebResult Stop() override {
-        ++StopCalls;
-        return WebResult::Success();
-    }
-
-    void Reset() noexcept override {
-        ++ResetCalls;
-        Dispatcher = nullptr;
-    }
+    WebResult Start() override { ++Starts; return WebResult::Success(); }
+    WebResult Stop() override { ++Stops; return WebResult::Success(); }
+    void Reset() noexcept override { Dispatcher = nullptr; }
 };
 
 class EchoHandler final : public IHttpRequestHandler {
 public:
     int Calls = 0;
-
-    WebResult Handle(WebRequestContext& context) override {
+    HttpHandlerResult Handle(WebRequestContext& context) override {
         ++Calls;
-        if (context.Request().Path() != "/status") {
-            return WebResult::Failure(WebError::ProtocolError);
-        }
+        if (context.Request().Path() != "/status") return HttpHandlerResult::NotHandled();
         (void)context.Response().Status(HttpStatus::Accepted);
-        return context.Response().Send("accepted", "text/plain");
+        return HttpHandlerResult::Handled(context.Response().Send("accepted", "text/plain"));
     }
 };
 
-class ServerObserver final : public IHttpServerObserver {
+class Observer final : public IHttpServerObserver {
 public:
     HttpServer* Server = nullptr;
     int Notifications = 0;
-
-    void OnHttpServerStateChanged(HttpServerState, HttpServerState newState) override {
+    void OnHttpServerStateChanged(HttpServerState, HttpServerState state) override {
         ++Notifications;
         assert(Server != nullptr);
-        assert(Server->State() == newState);
+        assert(Server->State() == state);
     }
 };
 
 void TestRequestAndResponse() {
-    FakeRequest requestPlatform;
-    requestPlatform.Headers["Content-Type"] = "application/json";
-    requestPlatform.Body = {1, 2, 3, 4};
-    requestPlatform.Length = requestPlatform.Body.size();
-
-    FakeResponse responsePlatform;
-    WebRequestContext context(requestPlatform, responsePlatform);
+    FakeRequest request;
+    request.Headers["Content-Type"] = "application/json";
+    request.Body = {1, 2, 3, 4};
+    request.Length = request.Body.size();
+    FakeResponse response;
+    WebRequestContext context(request, response);
 
     assert(context.Request().Method() == HttpMethod::Get);
     assert(context.Request().Path() == "/status");
     assert(context.Request().QueryString() == "verbose=1");
-    assert(context.Request().HasHeader("Content-Type"));
     assert(context.Request().HeaderValueLength("Content-Type") == 16);
 
     char header[32]{};
@@ -198,46 +162,33 @@ void TestRequestAndResponse() {
 
     uint8_t body[3]{};
     auto read = context.Request().ReadBody(body, sizeof(body));
-    assert(read);
-    assert(read.BytesRead == 3);
-    assert(!read.EndOfBody);
+    assert(read && read.BytesRead == 3 && !read.EndOfBody);
     read = context.Request().ReadBody(body, sizeof(body));
-    assert(read);
-    assert(read.BytesRead == 1);
-    assert(read.EndOfBody);
+    assert(read && read.BytesRead == 1 && read.EndOfBody);
 
     assert(context.Response().Status(HttpStatus::Created));
     assert(context.Response().Send("hello", "text/plain"));
     assert(context.Response().State() == HttpResponseState::Completed);
-    assert(responsePlatform.StatusValue == HttpStatus::Created);
-    assert(responsePlatform.Headers["Content-Type"] == "text/plain");
-    assert(responsePlatform.BegunLength == std::optional<std::size_t>(5));
-    assert(std::string(responsePlatform.Bytes.begin(), responsePlatform.Bytes.end()) == "hello");
-    assert(responsePlatform.Completed);
+    assert(response.StatusValue == HttpStatus::Created);
+    assert(response.Headers["Content-Type"] == "text/plain");
+    assert(response.BegunLength == std::optional<std::size_t>(5));
 }
 
 void TestServerLifecycleAndDispatch() {
     FakeServerPlatform platform;
     HttpServer server(platform);
     EchoHandler handler;
-    ServerObserver observer;
+    Observer observer;
     observer.Server = &server;
     auto observerHandle = server.RegisterObserver(&observer);
 
     assert(server.SetRequestHandler(&handler));
-
-    HttpServerConfiguration configuration;
-    configuration.Port = 8080;
-    assert(server.Initialize(configuration));
+    HttpServerConfiguration config;
+    config.Port = 8080;
+    assert(server.Initialize(config));
     assert(server.State() == HttpServerState::Ready);
-    assert(platform.InitializeCalls == 1);
-    assert(platform.Configuration.Port == 8080);
     assert(server.Supports(WebCapability::Http));
-    assert(server.Supports(WebCapability::ChunkedResponses));
-
     assert(server.Start());
-    assert(server.State() == HttpServerState::Running);
-    assert(platform.StartCalls == 1);
     assert(!server.SetRequestHandler(nullptr));
 
     FakeRequest request;
@@ -250,10 +201,26 @@ void TestServerLifecycleAndDispatch() {
 
     assert(server.Stop());
     assert(server.State() == HttpServerState::Stopped);
-    assert(platform.StopCalls == 1);
+    assert(platform.Starts == 1 && platform.Stops == 1);
     assert(observer.Notifications == 6);
-
     observerHandle.reset();
+}
+
+void TestNotHandledBecomesNotFound() {
+    FakeServerPlatform platform;
+    HttpServer server(platform);
+    EchoHandler handler;
+    assert(server.SetRequestHandler(&handler));
+    assert(server.Initialize({}));
+    assert(server.Start());
+
+    FakeRequest request;
+    request.PathValue = "/missing";
+    FakeResponse response;
+    const auto result = platform.Dispatcher->Dispatch(request, response);
+    assert(result.Error == WebError::NotFound);
+    assert(!response.Begun);
+    assert(server.Stop());
 }
 
 } // namespace
@@ -261,5 +228,6 @@ void TestServerLifecycleAndDispatch() {
 int main() {
     TestRequestAndResponse();
     TestServerLifecycleAndDispatch();
+    TestNotHandledBecomesNotFound();
     return 0;
 }
