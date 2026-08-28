@@ -180,5 +180,34 @@ private:
     bool _running = false;
 };
 
-// Production architecture packages should provide the concrete platform class;
-// application code should consume it through the normal Web-owned HttpServer.
+class HelloHandler final : public IHttpRequestHandler {
+public:
+    HttpHandlerResult Handle(WebRequestContext& context) override {
+        if (context.Request().Method() != HttpMethod::Get ||
+            context.Request().Path() != "/") {
+            return HttpHandlerResult::NotHandled();
+        }
+        return HttpHandlerResult::Handled(
+            context.Response().Send("hello from a porting example")
+        );
+    }
+};
+
+int main() {
+    ExampleHttpServerPlatform platform;
+    HttpServer server(platform);
+    HelloHandler handler;
+
+    if (!server.SetRequestHandler(&handler)) return 1;
+    if (!server.Initialize({})) return 2;
+    if (!server.Start()) return 3;
+
+    NativeRequest request;
+    request.Method = HttpMethod::Get;
+    request.Path = "/";
+
+    // In a real port, this call is made by the architecture's native HTTP
+    // callback rather than by main().
+    if (!platform.OnNativeRequest(request)) return 4;
+    return 0;
+}
