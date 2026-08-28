@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <optional>
 
 #include <ESPressio_IEventTransport.hpp>
 #include <ESPressio_Memory.hpp>
