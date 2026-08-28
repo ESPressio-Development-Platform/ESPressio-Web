@@ -56,18 +56,42 @@ private:
         Chain(const Chain& other) : Entries(other.Entries), Terminal(other.Terminal) {}
     };
 
-    class Invocation final : public IHttpMiddlewareNext {
+    class Invocation final {
+    private:
+        class Next final : public IHttpMiddlewareNext {
+        public:
+            Next(Invocation& invocation, std::size_t nextIndex)
+                : _invocation(invocation), _nextIndex(nextIndex) {}
+
+            HttpHandlerResult Invoke(WebRequestContext& context) override {
+                if (_invoked) return HttpHandlerResult::Failure(WebError::InvalidState);
+                _invoked = true;
+                return _invocation.InvokeAt(context, _nextIndex);
+            }
+
+        private:
+            Invocation& _invocation;
+            std::size_t _nextIndex;
+            bool _invoked = false;
+        };
+
     public:
         explicit Invocation(std::shared_ptr<const Chain> chain)
             : _chain(std::move(chain)) {}
 
-        HttpHandlerResult Invoke(WebRequestContext& context) override {
-            if (_index < _chain->Entries.size()) {
-                auto* middleware = _chain->Entries[_index++].Middleware;
+        HttpHandlerResult Invoke(WebRequestContext& context) {
+            return InvokeAt(context, 0);
+        }
+
+    private:
+        HttpHandlerResult InvokeAt(WebRequestContext& context, std::size_t index) {
+            if (index < _chain->Entries.size()) {
+                auto* middleware = _chain->Entries[index].Middleware;
                 if (middleware == nullptr) {
                     return HttpHandlerResult::Failure(WebError::InvalidState);
                 }
-                return middleware->Handle(context, *this);
+                Next next(*this, index + 1);
+                return middleware->Handle(context, next);
             }
 
             if (_chain->Terminal == nullptr) {
@@ -76,9 +100,7 @@ private:
             return _chain->Terminal->Handle(context);
         }
 
-    private:
         std::shared_ptr<const Chain> _chain;
-        std::size_t _index = 0;
     };
 
 public:
