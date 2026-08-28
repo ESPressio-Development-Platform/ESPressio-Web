@@ -41,10 +41,25 @@ public:
 
 struct WebSocketClientConnectionPolicy final {
     uint32_t NetworkTimeoutMilliseconds = 10000;
+
+    // AutomaticReconnect applies to unexpected transport/network failures.
     bool AutomaticReconnect = false;
     uint32_t ReconnectDelayMilliseconds = 10000;
+
+    // Some platforms can separately reconnect after a clean RFC6455 close.
+    // A provider that cannot represent this must return Unsupported when true.
+    bool ReconnectAfterCleanClose = false;
+
+    // Zero may be used to request the concrete platform's default heartbeat
+    // behavior. Non-zero values describe explicit portable policy.
     uint32_t PingIntervalMilliseconds = 10000;
     uint32_t PongTimeoutMilliseconds = 10000;
+
+    bool TcpKeepAlive = false;
+    uint32_t TcpKeepAliveIdleSeconds = 5;
+    uint32_t TcpKeepAliveIntervalSeconds = 5;
+    uint32_t TcpKeepAliveProbeCount = 3;
+
     std::size_t MaximumHandshakeHeaderBytes = 4096;
 };
 
