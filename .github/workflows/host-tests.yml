@@ -24,6 +24,12 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Observable
           ref: feature/16-rtti-free-observer-registry
           path: ESPressio-Observable
+      - name: Check out ESPressio Persistence working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Persistence
+          ref: feature/10-platform-storage-abstractions
+          path: ESPressio-Persistence
       - name: Configure
         run: cmake -S ESPressio-Web/tests -B build/tests
       - name: Build
