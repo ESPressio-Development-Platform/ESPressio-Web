@@ -14,6 +14,7 @@ set(ESPRESSIO_WEB_COMMON_INCLUDES
 
 add_executable(espressio_web_core_include test_core_include.cpp)
 add_executable(espressio_web_websocket_tests test_websocket.cpp)
+add_executable(espressio_web_websocket_policy_tests test_websocket_policy.cpp)
 add_executable(espressio_web_http_tests test_http.cpp)
 add_executable(espressio_web_router_tests test_router.cpp)
 add_executable(espressio_web_middleware_tests test_middleware.cpp)
@@ -37,6 +38,7 @@ add_executable(
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
     espressio_web_websocket_tests
+    espressio_web_websocket_policy_tests
     espressio_web_http_tests
     espressio_web_router_tests
     espressio_web_middleware_tests
