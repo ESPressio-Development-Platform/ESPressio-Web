@@ -21,6 +21,12 @@ jobs:
           python-version: '3.x'
       - name: Install PlatformIO
         run: pip install platformio
-      - name: Build ESP32 HTTP provider integration
+      - name: Build ESP32 provider integration
         working-directory: tests/esp32
         run: pio run
+      - name: Build ESP32 consumer example
+        working-directory: tests/esp32
+        run: |
+          cp ../../examples/ESP32/HttpAndWebSocket/main.cpp src/main.cpp
+          pio run -t clean
+          pio run
