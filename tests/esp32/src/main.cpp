@@ -69,11 +69,13 @@ void setup() {
     ESPressio::Web::HttpServerConfiguration httpConfiguration;
     httpConfiguration.Port = 80;
     (void)httpServer.Initialize(httpConfiguration);
+    (void)httpServer.Start();
 
     (void)dnsServer.SetRequestHandler(&wildcardDns);
     ESPressio::Web::DnsServerConfiguration dnsConfiguration;
     dnsConfiguration.Port = 53;
     (void)dnsServer.Initialize(dnsConfiguration);
+    (void)dnsServer.Start();
 }
 
 void loop() {}
