@@ -7,6 +7,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 #include <new>
 
 #include <ESPressio_CommandEnvelope.hpp>
@@ -27,6 +28,7 @@ public:
         if (configuration.ReadChunkBytes == 0) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
+        std::lock_guard<std::mutex> lock(_mutex);
         _configuration = configuration;
         return WebResult::Success();
     }
@@ -37,6 +39,12 @@ public:
     ) override {
         if (context.Request().Method() != HttpMethod::Post) {
             return HttpHandlerResult::NotHandled();
+        }
+
+        HttpCommandIngressConfiguration configuration;
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            configuration = _configuration;
         }
 
         const auto declaredLength = context.Request().ContentLength();
@@ -59,7 +67,7 @@ public:
         System::Memory::Vector<
             uint8_t,
             System::Memory::MemoryPolicy::ExternalPreferred
-        > chunk(_configuration.ReadChunkBytes);
+        > chunk(configuration.ReadChunkBytes);
 
         bool end = false;
         while (!end) {
@@ -118,6 +126,7 @@ private:
     }
 
     inline static std::atomic<Command::CommandRequestId> _nextRequestId{1};
+    mutable std::mutex _mutex;
     HttpCommandIngressConfiguration _configuration{};
 };
 
