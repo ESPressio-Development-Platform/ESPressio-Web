@@ -32,13 +32,24 @@ ESPressio::Web::WildcardDnsHandler wildcardDns(
 } // namespace
 
 void setup() {
-    ESPressio::Web::RouteHandle route;
+    ESPressio::Web::RouteHandle getRoute;
     (void)router.RegisterRoute(
         ESPressio::Web::HttpMethod::Get,
         "/",
         root,
-        route
+        getRoute
     );
+
+    // The same application handler is intentionally registered for HEAD so the
+    // ESP32 provider must suppress the body while preserving Content-Length.
+    ESPressio::Web::RouteHandle headRoute;
+    (void)router.RegisterRoute(
+        ESPressio::Web::HttpMethod::Head,
+        "/",
+        root,
+        headRoute
+    );
+
     (void)httpServer.SetRequestHandler(&application);
 
     ESPressio::Web::HttpServerConfiguration httpConfiguration;
