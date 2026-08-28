@@ -19,7 +19,8 @@ enum class WebError : uint8_t {
     InvalidState,
     ProtocolError,
     Closed,
-    PlatformFailure
+    PlatformFailure,
+    Count
 };
 
 struct WebResult final {
