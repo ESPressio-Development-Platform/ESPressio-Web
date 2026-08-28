@@ -17,33 +17,68 @@ enum class HttpMethod : uint8_t {
     Patch,
     Delete,
     Options,
+    Connect,
+    Trace,
     Any
 };
 
 enum class HttpStatus : uint16_t {
     Continue = 100,
+    SwitchingProtocols = 101,
     Ok = 200,
     Created = 201,
     Accepted = 202,
     NoContent = 204,
+    PartialContent = 206,
     MovedPermanently = 301,
     Found = 302,
+    SeeOther = 303,
     NotModified = 304,
+    TemporaryRedirect = 307,
+    PermanentRedirect = 308,
     BadRequest = 400,
     Unauthorized = 401,
     Forbidden = 403,
     NotFound = 404,
     MethodNotAllowed = 405,
+    RequestTimeout = 408,
     Conflict = 409,
+    Gone = 410,
     LengthRequired = 411,
+    PreconditionFailed = 412,
     PayloadTooLarge = 413,
     UnsupportedMediaType = 415,
+    RangeNotSatisfiable = 416,
+    UnprocessableContent = 422,
     TooManyRequests = 429,
+    UpgradeRequired = 426,
     InternalServerError = 500,
     NotImplemented = 501,
     BadGateway = 502,
-    ServiceUnavailable = 503
+    ServiceUnavailable = 503,
+    GatewayTimeout = 504
 };
+
+namespace HttpHeaderName {
+inline constexpr std::string_view Accept = "Accept";
+inline constexpr std::string_view Authorization = "Authorization";
+inline constexpr std::string_view CacheControl = "Cache-Control";
+inline constexpr std::string_view Connection = "Connection";
+inline constexpr std::string_view ContentEncoding = "Content-Encoding";
+inline constexpr std::string_view ContentLength = "Content-Length";
+inline constexpr std::string_view ContentType = "Content-Type";
+inline constexpr std::string_view ETag = "ETag";
+inline constexpr std::string_view Host = "Host";
+inline constexpr std::string_view IfMatch = "If-Match";
+inline constexpr std::string_view IfModifiedSince = "If-Modified-Since";
+inline constexpr std::string_view IfNoneMatch = "If-None-Match";
+inline constexpr std::string_view Location = "Location";
+inline constexpr std::string_view Origin = "Origin";
+inline constexpr std::string_view Range = "Range";
+inline constexpr std::string_view Upgrade = "Upgrade";
+inline constexpr std::string_view UserAgent = "User-Agent";
+inline constexpr std::string_view Vary = "Vary";
+} // namespace HttpHeaderName
 
 enum class HttpTransportMode : uint8_t {
     Plain = 0,
@@ -83,10 +118,10 @@ public:
     virtual std::string_view QueryString() const noexcept = 0;
     virtual std::optional<std::size_t> ContentLength() const noexcept = 0;
 
-    // Header lookup is deliberately lazy. The platform does not materialize
-    // a request-wide header map. HeaderValueLength() returns zero when the
-    // header is absent; ReadHeader() copies only the requested value into a
-    // caller-owned bounded buffer.
+    // Header lookup is deliberately lazy. Empty-valued headers remain
+    // distinguishable from absent headers via HasHeader(). ReadHeader()
+    // copies only the requested value into caller-owned bounded storage.
+    virtual bool HasHeader(std::string_view name) const noexcept = 0;
     virtual std::size_t HeaderValueLength(std::string_view name) const noexcept = 0;
     virtual WebResult ReadHeader(
         std::string_view name,
@@ -124,7 +159,7 @@ public:
     std::optional<std::size_t> ContentLength() const noexcept { return _platform.ContentLength(); }
 
     bool HasHeader(std::string_view name) const noexcept {
-        return _platform.HeaderValueLength(name) != 0;
+        return _platform.HasHeader(name);
     }
 
     std::size_t HeaderValueLength(std::string_view name) const noexcept {
@@ -138,10 +173,38 @@ public:
         std::size_t& bytesWritten
     ) const {
         bytesWritten = 0;
-        if (destination == nullptr || capacity == 0) {
+        if (name.empty() || destination == nullptr || capacity == 0) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
         return _platform.ReadHeader(name, destination, capacity, bytesWritten);
+    }
+
+    // Returns the raw encoded value view from the borrowed query string.
+    // Percent-decoding is intentionally not performed by the HTTP transport.
+    std::optional<std::string_view> QueryValue(std::string_view name) const noexcept {
+        if (name.empty()) return std::nullopt;
+        const auto query = QueryString();
+        std::size_t position = 0;
+
+        while (position <= query.size()) {
+            const std::size_t ampersand = query.find('&', position);
+            const std::size_t end = ampersand == std::string_view::npos
+                ? query.size()
+                : ampersand;
+            const auto pair = query.substr(position, end - position);
+            const std::size_t equals = pair.find('=');
+            const auto key = equals == std::string_view::npos
+                ? pair
+                : pair.substr(0, equals);
+            if (key == name) {
+                return equals == std::string_view::npos
+                    ? std::string_view{}
+                    : pair.substr(equals + 1);
+            }
+            if (ampersand == std::string_view::npos) break;
+            position = ampersand + 1;
+        }
+        return std::nullopt;
     }
 
     HttpReadResult ReadBody(uint8_t* destination, std::size_t capacity) {
@@ -182,14 +245,15 @@ public:
     }
 
     WebResult Header(std::string_view name, std::string_view value) {
-        if (_state != HttpResponseState::Uncommitted || name.empty()) {
+        if (name.empty()) return WebResult::Failure(WebError::InvalidConfiguration);
+        if (_state != HttpResponseState::Uncommitted) {
             return WebResult::Failure(WebError::InvalidState);
         }
         return _platform.SetHeader(name, value);
     }
 
     WebResult ContentType(std::string_view value) {
-        return Header("Content-Type", value);
+        return Header(HttpHeaderName::ContentType, value);
     }
 
     WebResult Begin(std::optional<std::size_t> contentLength = std::nullopt) {
@@ -202,9 +266,8 @@ public:
     }
 
     WebResult Write(const uint8_t* data, std::size_t size) {
-        if (data == nullptr || size == 0) {
-            return WebResult::Failure(WebError::InvalidConfiguration);
-        }
+        if (size == 0) return WebResult::Success();
+        if (data == nullptr) return WebResult::Failure(WebError::InvalidConfiguration);
         if (_state == HttpResponseState::Uncommitted) {
             const auto beginResult = Begin(std::nullopt);
             if (!beginResult) return beginResult;
@@ -259,10 +322,8 @@ public:
     }
 
     void Abort() noexcept {
-        if (
-            _state == HttpResponseState::Completed ||
-            _state == HttpResponseState::Aborted
-        ) {
+        if (_state == HttpResponseState::Completed ||
+            _state == HttpResponseState::Aborted) {
             return;
         }
         _platform.Abort();
