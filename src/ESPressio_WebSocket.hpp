@@ -21,6 +21,11 @@ struct WebSocketCloseReason final {
     std::string_view Reason;
 };
 
+struct WebSocketEndpointConfiguration final {
+    std::string_view Path;
+    std::string_view Protocol;
+};
+
 struct WebSocketClientConfiguration final {
     std::string_view Host;
     uint16_t Port = 0;
@@ -52,6 +57,9 @@ class IWebSocketEndpointPlatform {
 public:
     virtual ~IWebSocketEndpointPlatform() = default;
     virtual void SetSink(IWebSocketEndpointPlatformSink* sink) = 0;
+    virtual WebResult Bind(const WebSocketEndpointConfiguration& configuration) = 0;
+    virtual WebResult Unbind() = 0;
+    virtual bool IsBound() const noexcept = 0;
     virtual std::size_t ConnectionCount() const noexcept = 0;
     virtual WebResult BroadcastBinary(const uint8_t* data, std::size_t size) = 0;
     virtual WebResult BroadcastText(std::string_view text) = 0;
