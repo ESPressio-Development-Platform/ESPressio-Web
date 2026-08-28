@@ -108,9 +108,9 @@ public:
     }
 
     WebResult Connect(const WebSocketClientConfiguration& configuration) {
-        return _platform == nullptr
-            ? WebResult::Failure(WebError::InvalidState)
-            : _platform->Connect(configuration);
+        if (_platform == nullptr) return WebResult::Failure(WebError::InvalidState);
+        const auto validation = ValidateConfiguration(configuration);
+        return validation ? _platform->Connect(configuration) : validation;
     }
 
     WebResult Disconnect(const WebSocketCloseReason& reason = {}) {
@@ -128,6 +128,71 @@ public:
     }
 
 private:
+    static bool ContainsInvalidHeaderNameCharacter(std::string_view name) noexcept {
+        if (name.empty()) return true;
+        for (const unsigned char character : name) {
+            if (character <= 0x20 || character >= 0x7f ||
+                character == ':' || character == '\r' || character == '\n') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static bool ContainsHeaderLineBreak(std::string_view value) noexcept {
+        return value.find('\r') != std::string_view::npos ||
+               value.find('\n') != std::string_view::npos;
+    }
+
+    static WebResult ValidateHeaders(const IWebClientHeaderSource* headers) noexcept {
+        if (headers == nullptr) return WebResult::Success();
+        const std::size_t count = headers->Count();
+        for (std::size_t index = 0; index < count; ++index) {
+            WebClientHeader header;
+            if (!headers->Header(index, header) ||
+                ContainsInvalidHeaderNameCharacter(header.Name) ||
+                ContainsHeaderLineBreak(header.Value)) {
+                return WebResult::Failure(WebError::InvalidConfiguration);
+            }
+        }
+        return WebResult::Success();
+    }
+
+    static WebResult ValidateConfiguration(
+        const WebSocketClientConfiguration& configuration
+    ) noexcept {
+        if (configuration.Host.empty() ||
+            configuration.Port == 0 ||
+            configuration.Path.empty() ||
+            configuration.Path.front() != '/' ||
+            configuration.Policy.NetworkTimeoutMilliseconds == 0) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+
+        if (configuration.Policy.AutomaticReconnect &&
+            configuration.Policy.ReconnectDelayMilliseconds == 0) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+        if (configuration.Policy.PingIntervalMilliseconds != 0 &&
+            configuration.Policy.PongTimeoutMilliseconds == 0) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+
+        const auto headerValidation = ValidateHeaders(configuration.Headers);
+        if (!headerValidation) return headerValidation;
+
+        if (configuration.Transport == WebTransportMode::Tls) {
+            return configuration.Tls.Validate();
+        }
+
+        if (!configuration.Tls.ServerCertificateAuthority.Empty() ||
+            !configuration.Tls.ClientCertificate.Empty() ||
+            !configuration.Tls.ClientPrivateKey.Empty()) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+        return WebResult::Success();
+    }
+
     IWebSocketClientPlatform* _platform = nullptr;
     std::shared_ptr<ClientObservable> _observable;
 
