@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <string_view>
 
@@ -13,10 +14,7 @@ namespace ESPressio::Web {
 class IHttpErrorResponder {
 public:
     virtual ~IHttpErrorResponder() = default;
-    virtual HttpHandlerResult Respond(
-        WebRequestContext& context,
-        WebError error
-    ) = 0;
+    virtual HttpHandlerResult Respond(WebRequestContext& context, WebError error) = 0;
 };
 
 inline HttpStatus DefaultHttpStatusForWebError(WebError error) noexcept {
@@ -25,15 +23,11 @@ inline HttpStatus DefaultHttpStatusForWebError(WebError error) noexcept {
         case WebError::RequestTooLarge: return HttpStatus::PayloadTooLarge;
         case WebError::Unsupported: return HttpStatus::NotImplemented;
         case WebError::ProtocolError:
-        case WebError::InvalidConfiguration:
-            return HttpStatus::BadRequest;
+        case WebError::InvalidConfiguration: return HttpStatus::BadRequest;
         case WebError::ResourceExhausted:
-        case WebError::NotRunning:
-            return HttpStatus::ServiceUnavailable;
-        case WebError::None:
-            return HttpStatus::Ok;
-        default:
-            return HttpStatus::InternalServerError;
+        case WebError::NotRunning: return HttpStatus::ServiceUnavailable;
+        case WebError::None: return HttpStatus::Ok;
+        default: return HttpStatus::InternalServerError;
     }
 }
 
@@ -43,13 +37,10 @@ inline std::string_view DefaultHttpErrorBody(WebError error) noexcept {
         case WebError::RequestTooLarge: return "Payload Too Large";
         case WebError::Unsupported: return "Not Implemented";
         case WebError::ProtocolError:
-        case WebError::InvalidConfiguration:
-            return "Bad Request";
+        case WebError::InvalidConfiguration: return "Bad Request";
         case WebError::ResourceExhausted:
-        case WebError::NotRunning:
-            return "Service Unavailable";
-        default:
-            return "Internal Server Error";
+        case WebError::NotRunning: return "Service Unavailable";
+        default: return "Internal Server Error";
     }
 }
 
@@ -86,19 +77,12 @@ public:
             ? static_cast<const IHttpContentTypeResolver*>(&_defaultContentTypeResolver)
             : contentTypeResolver) {}
 
-    WebResult ConfigureResource(
-        WebError error,
-        std::string_view path,
-        HttpStatus status
-    ) {
+    WebResult ConfigureResource(WebError error, std::string_view path, HttpStatus status) {
         const auto index = static_cast<std::size_t>(error);
-        if (error == WebError::None ||
-            error == WebError::Count ||
-            index >= _mappings.size() ||
-            !IsSafeWebResourcePath(path)) {
+        if (error == WebError::None || error == WebError::Count ||
+            index >= _mappings.size() || !IsSafeWebResourcePath(path)) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
-
         auto& mapping = _mappings[index];
         mapping.Configured = true;
         mapping.Status = status;
@@ -109,7 +93,9 @@ public:
     void ClearResource(WebError error) {
         const auto index = static_cast<std::size_t>(error);
         if (index >= _mappings.size()) return;
-        _mappings[index] = {};
+        auto& mapping = _mappings[index];
+        mapping.Configured = false;
+        mapping.Path.clear();
     }
 
     WebResult ConfigureStreaming(const ResourceResponseConfiguration& configuration) {
@@ -147,7 +133,6 @@ public:
 
 private:
     static constexpr std::size_t ErrorCount = static_cast<std::size_t>(WebError::Count);
-
     IWebResourceProvider& _provider;
     DefaultHttpErrorResponder _defaultFallback;
     IHttpErrorResponder* _fallback;
@@ -169,20 +154,27 @@ public:
             ? static_cast<IHttpErrorResponder*>(&_defaultErrorResponder)
             : errorResponder) {}
 
-    void SetPrimary(IHttpRequestHandler* primary) noexcept { _primary = primary; }
-    void SetFallback(IHttpRequestHandler* fallback) noexcept { _fallback = fallback; }
+    void SetPrimary(IHttpRequestHandler* primary) noexcept {
+        _primary.store(primary, std::memory_order_release);
+    }
+    void SetFallback(IHttpRequestHandler* fallback) noexcept {
+        _fallback.store(fallback, std::memory_order_release);
+    }
     void SetErrorResponder(IHttpErrorResponder* responder) noexcept {
-        _errorResponder = responder == nullptr
-            ? static_cast<IHttpErrorResponder*>(&_defaultErrorResponder)
-            : responder;
+        _errorResponder.store(
+            responder == nullptr
+                ? static_cast<IHttpErrorResponder*>(&_defaultErrorResponder)
+                : responder,
+            std::memory_order_release
+        );
     }
 
     HttpHandlerResult Handle(WebRequestContext& context) override {
-        auto result = Invoke(_primary, context);
+        auto result = Invoke(_primary.load(std::memory_order_acquire), context);
         if (!result.Result) return ResolveError(context, result.Result.Error);
         if (result.Disposition == HttpHandlerDisposition::Handled) return result;
 
-        result = Invoke(_fallback, context);
+        result = Invoke(_fallback.load(std::memory_order_acquire), context);
         if (!result.Result) return ResolveError(context, result.Result.Error);
         if (result.Disposition == HttpHandlerDisposition::Handled) return result;
 
@@ -190,10 +182,7 @@ public:
     }
 
 private:
-    static HttpHandlerResult Invoke(
-        IHttpRequestHandler* handler,
-        WebRequestContext& context
-    ) {
+    static HttpHandlerResult Invoke(IHttpRequestHandler* handler, WebRequestContext& context) {
         return handler == nullptr
             ? HttpHandlerResult::NotHandled()
             : handler->Handle(context);
@@ -203,13 +192,13 @@ private:
         if (context.Response().IsCommitted()) {
             return HttpHandlerResult::Failure(error);
         }
-        return _errorResponder->Respond(context, error);
+        return _errorResponder.load(std::memory_order_acquire)->Respond(context, error);
     }
 
-    IHttpRequestHandler* _primary;
-    IHttpRequestHandler* _fallback;
+    std::atomic<IHttpRequestHandler*> _primary;
+    std::atomic<IHttpRequestHandler*> _fallback;
     DefaultHttpErrorResponder _defaultErrorResponder;
-    IHttpErrorResponder* _errorResponder;
+    std::atomic<IHttpErrorResponder*> _errorResponder;
 };
 
 } // namespace ESPressio::Web
