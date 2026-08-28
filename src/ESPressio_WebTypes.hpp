@@ -44,8 +44,7 @@ enum class WebCapability : uint32_t {
     WebSocketServer = 1u << 3,
     WebSocketClient = 1u << 4,
     Tls = 1u << 5,
-    Dns = 1u << 6,
-    WildcardDns = 1u << 7
+    Dns = 1u << 6
 };
 
 using WebCapabilities = uint32_t;
