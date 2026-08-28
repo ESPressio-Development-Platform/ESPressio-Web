@@ -22,7 +22,11 @@ add_executable(espressio_web_persistence_resource_tests test_persistence_resourc
 add_executable(espressio_web_dns_tests test_dns.cpp)
 add_executable(espressio_web_service_tests test_service.cpp)
 add_executable(espressio_web_event_integration_tests test_web_event.cpp)
-add_executable(espressio_web_command_integration_tests test_web_command.cpp)
+add_executable(
+    espressio_web_command_integration_tests
+    test_web_command.cpp
+    ../../ESPressio-Threads/src/ESPressio_Thread.cpp
+)
 add_executable(espressio_web_state_integration_tests test_web_state.cpp)
 
 set(ESPRESSIO_WEB_TEST_TARGETS
