@@ -54,11 +54,17 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Threads
           ref: optimisation/69-resource-footprint
           path: ESPressio-Threads
-      - name: Check out ESPressio Timing
+      - name: Check out ESPressio Task working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: feature/1-task-execution
+          path: ESPressio-Task
+      - name: Check out ESPressio Timing working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Timing
-          ref: main
+          ref: feature/29-platform-clock-abstractions
           path: ESPressio-Timing
       - name: Check out ESPressio Units
         uses: actions/checkout@v4
