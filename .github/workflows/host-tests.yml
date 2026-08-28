@@ -30,6 +30,42 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
           ref: feature/10-platform-storage-abstractions
           path: ESPressio-Persistence
+      - name: Check out ESPressio State working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-State
+          ref: feature/1-state-foundation
+          path: ESPressio-State
+      - name: Check out ESPressio Event working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Event
+          ref: feature/57-rtti-free-memory-efficiency
+          path: ESPressio-Event
+      - name: Check out ESPressio Command working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Command
+          ref: feature/30-async-command-routing
+          path: ESPressio-Command
+      - name: Check out ESPressio Threads working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Threads
+          ref: optimisation/69-resource-footprint
+          path: ESPressio-Threads
+      - name: Check out ESPressio Timing
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: main
+          path: ESPressio-Timing
+      - name: Check out ESPressio Units
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: main
+          path: ESPressio-Units
       - name: Configure
         run: cmake -S ESPressio-Web/tests -B build/tests
       - name: Build
