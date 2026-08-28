@@ -90,6 +90,17 @@ public:
     }
 };
 
+class DoubleNextMiddleware final : public IHttpMiddleware {
+public:
+    HttpHandlerResult SecondResult = HttpHandlerResult::NotHandled();
+
+    HttpHandlerResult Handle(WebRequestContext& context, IHttpMiddlewareNext& next) override {
+        const auto first = next.Invoke(context);
+        SecondResult = next.Invoke(context);
+        return first;
+    }
+};
+
 HttpHandlerResult Invoke(MiddlewarePipeline& pipeline, Response& response) {
     Request request;
     WebRequestContext context(request, response);
@@ -155,6 +166,22 @@ void TestReentrantMutationUsesStableSnapshot() {
     assert(self.Calls == 1);
 }
 
+void TestNextCanOnlyBeInvokedOnce() {
+    MiddlewarePipeline pipeline;
+    Terminal terminal;
+    DoubleNextMiddleware middleware;
+    pipeline.SetTerminal(&terminal);
+    pipeline.Add(middleware);
+
+    Response response;
+    const auto result = Invoke(pipeline, response);
+    assert(result);
+    assert(result.Disposition == HttpHandlerDisposition::Handled);
+    assert(terminal.Calls == 1);
+    assert(!middleware.SecondResult);
+    assert(middleware.SecondResult.Result.Error == WebError::InvalidState);
+}
+
 void TestNoTerminalFallsThrough() {
     MiddlewarePipeline pipeline;
     Response response;
@@ -170,6 +197,7 @@ int main() {
     TestOrder();
     TestShortCircuit();
     TestReentrantMutationUsesStableSnapshot();
+    TestNextCanOnlyBeInvokedOnce();
     TestNoTerminalFallsThrough();
     return 0;
 }
