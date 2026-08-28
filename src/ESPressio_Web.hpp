@@ -4,6 +4,11 @@
 #define ESPRESSIO_WEB_VERSION_MINOR 1
 #define ESPRESSIO_WEB_VERSION_PATCH 0
 
+#include "ESPressio_WebTypes.hpp"
+#include "ESPressio_WebSocket.hpp"
+#include "ESPressio_WebSocketEndpoint.hpp"
+#include "ESPressio_WebSocketClient.hpp"
+
 namespace ESPressio::Web {
 
 struct Version final {
