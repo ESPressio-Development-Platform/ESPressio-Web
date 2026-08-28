@@ -20,6 +20,7 @@ add_executable(espressio_web_middleware_tests test_middleware.cpp)
 add_executable(espressio_web_resource_tests test_resources.cpp)
 add_executable(espressio_web_persistence_resource_tests test_persistence_resources.cpp)
 add_executable(espressio_web_dns_tests test_dns.cpp)
+add_executable(espressio_web_service_tests test_service.cpp)
 
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
@@ -30,6 +31,7 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_resource_tests
     espressio_web_persistence_resource_tests
     espressio_web_dns_tests
+    espressio_web_service_tests
 )
 
 foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
