@@ -7,6 +7,7 @@ set(COMPONENT_ADD_INCLUDEDIRS
 )
 
 set(COMPONENT_REQUIRES
+    "ESPressio_System"
     "ESPressio_Observable"
 )
 
