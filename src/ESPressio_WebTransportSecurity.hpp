@@ -59,8 +59,14 @@ struct WebTlsConfiguration final {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
 
-        if (ServerTrust == WebTlsServerTrustMode::CertificateAuthority &&
-            ServerCertificateAuthority.Empty()) {
+        if (ServerTrust == WebTlsServerTrustMode::CertificateAuthority) {
+            if (ServerCertificateAuthority.Empty()) {
+                return WebResult::Failure(WebError::InvalidConfiguration);
+            }
+        } else if (!ServerCertificateAuthority.Empty()) {
+            // A caller must choose exactly one server-authentication source.
+            // Never accept CA bytes that a PlatformTrust implementation would
+            // then silently ignore.
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
 
