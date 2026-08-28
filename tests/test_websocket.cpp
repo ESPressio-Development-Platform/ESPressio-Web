@@ -50,6 +50,24 @@ private:
 class FakeEndpointPlatform final : public IWebSocketEndpointPlatform {
 public:
     void SetSink(IWebSocketEndpointPlatformSink* sink) override { Sink = sink; }
+
+    WebResult Bind(const WebSocketEndpointConfiguration& configuration) override {
+        if (Bound) return WebResult::Failure(WebError::AlreadyRunning);
+        if (configuration.Path.empty()) return WebResult::Failure(WebError::InvalidConfiguration);
+        LastPath.assign(configuration.Path.data(), configuration.Path.size());
+        LastProtocol.assign(configuration.Protocol.data(), configuration.Protocol.size());
+        Bound = true;
+        ++BindCalls;
+        return WebResult::Success();
+    }
+
+    WebResult Unbind() override {
+        if (Bound) ++UnbindCalls;
+        Bound = false;
+        return WebResult::Success();
+    }
+
+    bool IsBound() const noexcept override { return Bound; }
     std::size_t ConnectionCount() const noexcept override { return Count; }
 
     WebResult BroadcastBinary(const uint8_t* data, std::size_t size) override {
@@ -88,11 +106,16 @@ public:
     }
 
     IWebSocketEndpointPlatformSink* Sink = nullptr;
+    bool Bound = false;
     std::size_t Count = 1;
+    int BindCalls = 0;
+    int UnbindCalls = 0;
     int BinaryBroadcasts = 0;
     int TextBroadcasts = 0;
     int CloseAllCalls = 0;
     uint16_t LastCloseCode = 0;
+    std::string LastPath;
+    std::string LastProtocol;
     std::vector<uint8_t> LastBinary;
     std::string LastText;
 };
@@ -227,6 +250,13 @@ void TestEndpointFacade() {
     WebSocketEndpoint endpoint;
     assert(endpoint.Attach(platform));
     assert(platform.Sink != nullptr);
+    assert(!endpoint.IsBound());
+    assert(!endpoint.Bind({"invalid", {}}));
+    assert(endpoint.Bind({"/application/socket", "espressio.v1"}));
+    assert(endpoint.IsBound());
+    assert(platform.BindCalls == 1);
+    assert(platform.LastPath == "/application/socket");
+    assert(platform.LastProtocol == "espressio.v1");
     assert(endpoint.ConnectionCount() == 1);
 
     auto observerHandle = endpoint.RegisterObserver(&observer);
@@ -265,6 +295,10 @@ void TestEndpointFacade() {
     observerHandle.reset();
     platform.EmitText(connection, "not observed");
     assert(observer.Text == 1);
+
+    assert(endpoint.Unbind());
+    assert(!endpoint.IsBound());
+    assert(platform.UnbindCalls == 1);
 
     endpoint.Detach();
     assert(platform.Sink == nullptr);
