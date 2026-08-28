@@ -11,6 +11,7 @@
 #include "ESPressio_Middleware.hpp"
 #include "ESPressio_Resources.hpp"
 #include "ESPressio_HttpApplication.hpp"
+#include "ESPressio_Dns.hpp"
 #include "ESPressio_WebSocket.hpp"
 #include "ESPressio_WebSocketEndpoint.hpp"
 #include "ESPressio_WebSocketClient.hpp"
