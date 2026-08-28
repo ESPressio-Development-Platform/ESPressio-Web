@@ -4,6 +4,7 @@
 #error "ESPressio Web Event integration requires ESPressio-Event."
 #endif
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -23,6 +24,12 @@ struct HttpEventIngressConfiguration final {
 class HttpEventIngress final :
     public Event::IEventTransport,
     public IHttpRouteHandler {
+private:
+    using PacketBuffer = System::Memory::Vector<
+        uint8_t,
+        System::Memory::MemoryPolicy::ExternalPreferred
+    >;
+
 public:
     WebResult Configure(const HttpEventIngressConfiguration& configuration) {
         if (configuration.MaximumPacketBytes == 0 ||
@@ -73,42 +80,15 @@ public:
             );
         }
 
-        System::Memory::Vector<
-            uint8_t,
-            System::Memory::MemoryPolicy::ExternalPreferred
-        > packet;
-        if (declaredLength.has_value()) packet.reserve(*declaredLength);
-
-        System::Memory::Vector<
-            uint8_t,
-            System::Memory::MemoryPolicy::ExternalPreferred
-        > chunk(configuration.ReadChunkBytes);
-
-        bool end = false;
-        while (!end) {
-            const auto read = context.Request().ReadBody(chunk.data(), chunk.size());
-            if (!read) return HttpHandlerResult::Handled(read.Result);
-            if (read.BytesRead > chunk.size()) {
-                return HttpHandlerResult::Failure(WebError::ProtocolError);
-            }
-            if (packet.size() + read.BytesRead > configuration.MaximumPacketBytes) {
-                return HttpHandlerResult::Failure(WebError::RequestTooLarge);
-            }
-            packet.insert(
-                packet.end(),
-                chunk.begin(),
-                chunk.begin() + static_cast<std::ptrdiff_t>(read.BytesRead)
-            );
-            end = read.EndOfBody;
-            if (!end && read.BytesRead == 0) {
-                return HttpHandlerResult::Failure(WebError::ProtocolError);
-            }
-        }
-
+        PacketBuffer packet;
+        const auto bodyResult = ReadPacketBody(
+            context.Request(),
+            declaredLength,
+            configuration,
+            packet
+        );
+        if (!bodyResult) return HttpHandlerResult::Handled(bodyResult);
         if (packet.empty()) return HttpHandlerResult::Failure(WebError::ProtocolError);
-        if (declaredLength.has_value() && packet.size() != *declaredLength) {
-            return HttpHandlerResult::Failure(WebError::ProtocolError);
-        }
 
         receiver->ReceiveEventTransportPacket(this, packet.data(), packet.size());
 
@@ -118,6 +98,72 @@ public:
     }
 
 private:
+    static WebResult ReadPacketBody(
+        HttpRequest& request,
+        std::optional<std::size_t> declaredLength,
+        const HttpEventIngressConfiguration& configuration,
+        PacketBuffer& packet
+    ) {
+        if (declaredLength.has_value()) {
+            packet.resize(*declaredLength);
+            std::size_t offset = 0;
+            while (offset < packet.size()) {
+                const auto read = request.ReadBody(
+                    packet.data() + offset,
+                    packet.size() - offset
+                );
+                if (!read) return read.Result;
+                if (read.BytesRead > packet.size() - offset) {
+                    return WebResult::Failure(WebError::ProtocolError);
+                }
+                offset += read.BytesRead;
+                if (read.EndOfBody) {
+                    return offset == packet.size()
+                        ? WebResult::Success()
+                        : WebResult::Failure(WebError::ProtocolError);
+                }
+                if (read.BytesRead == 0) {
+                    return WebResult::Failure(WebError::ProtocolError);
+                }
+            }
+            return WebResult::Failure(WebError::ProtocolError);
+        }
+
+        packet.reserve(std::min(
+            configuration.ReadChunkBytes,
+            configuration.MaximumPacketBytes
+        ));
+
+        for (;;) {
+            if (packet.size() >= configuration.MaximumPacketBytes) {
+                return WebResult::Failure(WebError::RequestTooLarge);
+            }
+
+            const auto oldSize = packet.size();
+            const auto capacity = std::min(
+                configuration.ReadChunkBytes,
+                configuration.MaximumPacketBytes - oldSize
+            );
+            packet.resize(oldSize + capacity);
+
+            const auto read = request.ReadBody(packet.data() + oldSize, capacity);
+            if (!read) {
+                packet.resize(oldSize);
+                return read.Result;
+            }
+            if (read.BytesRead > capacity) {
+                packet.resize(oldSize);
+                return WebResult::Failure(WebError::ProtocolError);
+            }
+
+            packet.resize(oldSize + read.BytesRead);
+            if (read.EndOfBody) return WebResult::Success();
+            if (read.BytesRead == 0) {
+                return WebResult::Failure(WebError::ProtocolError);
+            }
+        }
+    }
+
     mutable std::mutex _mutex;
     HttpEventIngressConfiguration _configuration{};
     Event::IEventTransportReceiver* _receiver = nullptr;
