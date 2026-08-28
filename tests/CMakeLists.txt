@@ -24,10 +24,15 @@ add_executable(espressio_web_http_tests test_http.cpp)
 target_include_directories(espressio_web_http_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
 target_link_libraries(espressio_web_http_tests PRIVATE Threads::Threads)
 
+add_executable(espressio_web_router_tests test_router.cpp)
+target_include_directories(espressio_web_router_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
+target_link_libraries(espressio_web_router_tests PRIVATE Threads::Threads)
+
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
     espressio_web_websocket_tests
     espressio_web_http_tests
+    espressio_web_router_tests
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -44,3 +49,4 @@ enable_testing()
 add_test(NAME espressio_web_core_include COMMAND espressio_web_core_include)
 add_test(NAME espressio_web_websocket_tests COMMAND espressio_web_websocket_tests)
 add_test(NAME espressio_web_http_tests COMMAND espressio_web_http_tests)
+add_test(NAME espressio_web_router_tests COMMAND espressio_web_router_tests)
