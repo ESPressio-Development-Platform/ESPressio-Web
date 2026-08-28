@@ -11,6 +11,7 @@
 #include <string_view>
 #include <type_traits>
 
+#include <ESPressio_Memory.hpp>
 #include <ESPressio_StateCodec.hpp>
 #include <ESPressio_StatePublisher.hpp>
 
@@ -60,6 +61,12 @@ public:
 template<typename TDefinition>
 class StateCodecHttpSnapshotRepresentation final :
     public IHttpStateSnapshotRepresentation<TDefinition> {
+private:
+    using PayloadBuffer = System::Memory::Vector<
+        uint8_t,
+        System::Memory::MemoryPolicy::ExternalPreferred
+    >;
+
 public:
     using Value = State::StateValueType<TDefinition>;
     using Update = State::StateUpdate<Value>;
@@ -68,16 +75,16 @@ public:
         const Update& update,
         WebRequestContext& context
     ) override {
-        std::array<
-            uint8_t,
-            State::StateCodec<TDefinition>::MaximumEncodedSize
-        > payload{};
+        PayloadBuffer payload(State::StateCodec<TDefinition>::MaximumEncodedSize);
         std::size_t payloadSize = 0;
         if (!State::StateCodec<TDefinition>::Encode(
                 update.Value,
                 payload.data(),
                 payload.size(),
                 payloadSize)) {
+            return WebResult::Failure(WebError::ProtocolError);
+        }
+        if (payloadSize > payload.size()) {
             return WebResult::Failure(WebError::ProtocolError);
         }
 
