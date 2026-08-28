@@ -105,11 +105,12 @@ public:
     HttpServerConfiguration Config{};
     int Starts = 0;
     int Stops = 0;
+    WebCapabilities CapabilityValue =
+        ToCapabilities(WebCapability::Http) |
+        ToCapabilities(WebCapability::ChunkedResponses) |
+        ToCapabilities(WebCapability::PersistentConnections);
 
-    WebCapabilities Capabilities() const noexcept override {
-        return ToCapabilities(WebCapability::Http) |
-               ToCapabilities(WebCapability::ChunkedResponses);
-    }
+    WebCapabilities Capabilities() const noexcept override { return CapabilityValue; }
     WebResult Initialize(const HttpServerConfiguration& config, IHttpRequestDispatcher& dispatcher) override {
         Config = config;
         Dispatcher = &dispatcher;
@@ -229,11 +230,51 @@ void TestNotHandledBecomesNotFound() {
     assert(server.Stop());
 }
 
+void TestConfigurationCapabilities() {
+    FakeServerPlatform platform;
+    HttpServer server(platform);
+
+    HttpServerConfiguration invalid;
+    invalid.Port = 0;
+    assert(server.Initialize(invalid).Error == WebError::InvalidConfiguration);
+
+    HttpServerConfiguration tls;
+    tls.TransportMode = HttpTransportMode::Tls;
+    assert(server.Initialize(tls).Error == WebError::Unsupported);
+
+    platform.CapabilityValue = ToCapabilities(WebCapability::Http);
+    HttpServerConfiguration keepAlive;
+    assert(server.Initialize(keepAlive).Error == WebError::Unsupported);
+}
+
+void TestDeclaredBodyLimitRejectsBeforeHandler() {
+    FakeServerPlatform platform;
+    HttpServer server(platform);
+    EchoHandler handler;
+    assert(server.SetRequestHandler(&handler));
+
+    HttpServerConfiguration config;
+    config.MaximumRequestBodyBytes = 4;
+    assert(server.Initialize(config));
+    assert(server.Start());
+
+    FakeRequest request;
+    request.Length = 5;
+    FakeResponse response;
+    const auto result = platform.Dispatcher->Dispatch(request, response);
+    assert(result.Error == WebError::RequestTooLarge);
+    assert(handler.Calls == 0);
+    assert(!response.Begun);
+    assert(server.Stop());
+}
+
 } // namespace
 
 int main() {
     TestRequestAndResponse();
     TestServerLifecycleAndDispatch();
     TestNotHandledBecomesNotFound();
+    TestConfigurationCapabilities();
+    TestDeclaredBodyLimitRejectsBeforeHandler();
     return 0;
 }
