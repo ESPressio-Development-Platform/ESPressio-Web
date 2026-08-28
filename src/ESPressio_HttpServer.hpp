@@ -42,10 +42,7 @@ struct HttpHandlerResult final {
     }
 
     static constexpr HttpHandlerResult Failure(WebError error, int32_t platformCode = 0) noexcept {
-        return {
-            WebResult::Failure(error, platformCode),
-            HttpHandlerDisposition::Handled
-        };
+        return {WebResult::Failure(error, platformCode), HttpHandlerDisposition::Handled};
     }
 };
 
@@ -81,10 +78,7 @@ public:
 class IHttpServerObserver : public Observable::IObserver {
 public:
     ~IHttpServerObserver() override = default;
-    virtual void OnHttpServerStateChanged(
-        HttpServerState,
-        HttpServerState
-    ) {}
+    virtual void OnHttpServerStateChanged(HttpServerState, HttpServerState) {}
 };
 
 class HttpServer final : public IHttpRequestDispatcher {
@@ -145,6 +139,25 @@ public:
     }
 
     WebResult Initialize(const HttpServerConfiguration& configuration) {
+        if (configuration.Port == 0 ||
+            configuration.MaximumConnections == 0 ||
+            configuration.MaximumHeaderBytes == 0) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+
+        const auto capabilities = Capabilities();
+        if (!HasCapability(capabilities, WebCapability::Http)) {
+            return WebResult::Failure(WebError::Unsupported);
+        }
+        if (configuration.TransportMode == HttpTransportMode::Tls &&
+            !HasCapability(capabilities, WebCapability::Tls)) {
+            return WebResult::Failure(WebError::Unsupported);
+        }
+        if (configuration.KeepAlive &&
+            !HasCapability(capabilities, WebCapability::PersistentConnections)) {
+            return WebResult::Failure(WebError::Unsupported);
+        }
+
         HttpServerState oldState;
         {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -161,9 +174,9 @@ public:
 
         _platform.Reset();
         const auto result = _platform.Initialize(configuration, *this);
-
-        const HttpServerState finalState =
-            result ? HttpServerState::Ready : HttpServerState::Faulted;
+        const HttpServerState finalState = result
+            ? HttpServerState::Ready
+            : HttpServerState::Faulted;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             if (result) _configuration = configuration;
@@ -187,7 +200,9 @@ public:
         _observable->StateChanged(HttpServerState::Ready, HttpServerState::Starting);
 
         const auto result = _platform.Start();
-        const auto finalState = result ? HttpServerState::Running : HttpServerState::Faulted;
+        const auto finalState = result
+            ? HttpServerState::Running
+            : HttpServerState::Faulted;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             _state = finalState;
@@ -221,7 +236,9 @@ public:
 
         _observable->StateChanged(previous, HttpServerState::Stopping);
         const auto result = _platform.Stop();
-        const auto finalState = result ? HttpServerState::Stopped : HttpServerState::Faulted;
+        const auto finalState = result
+            ? HttpServerState::Stopped
+            : HttpServerState::Faulted;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             _state = finalState;
@@ -252,16 +269,23 @@ public:
         IHttpResponsePlatform& responsePlatform
     ) override {
         IHttpRequestHandler* handler;
+        std::size_t maximumRequestBodyBytes;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             if (_state != HttpServerState::Running) {
                 return WebResult::Failure(WebError::NotRunning);
             }
             handler = _handler;
+            maximumRequestBodyBytes = _configuration.MaximumRequestBodyBytes;
         }
 
         if (handler == nullptr) {
             return WebResult::Failure(WebError::InvalidState);
+        }
+
+        const auto contentLength = requestPlatform.ContentLength();
+        if (contentLength.has_value() && *contentLength > maximumRequestBodyBytes) {
+            return WebResult::Failure(WebError::RequestTooLarge);
         }
 
         WebRequestContext context(requestPlatform, responsePlatform);
