@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string_view>
 
@@ -63,7 +64,7 @@ private:
 class IHttpRouteHandler {
 public:
     virtual ~IHttpRouteHandler() = default;
-    virtual WebResult Handle(
+    virtual HttpHandlerResult Handle(
         WebRequestContext& context,
         const RouteParameters& parameters
     ) = 0;
@@ -160,7 +161,7 @@ public:
         return _routes.size();
     }
 
-    WebResult Handle(WebRequestContext& context) override {
+    HttpHandlerResult Handle(WebRequestContext& context) override {
         const auto method = context.Request().Method();
         const auto path = context.Request().Path();
 
@@ -199,7 +200,7 @@ public:
         }
 
         if (selected == nullptr || selected->Handler == nullptr) {
-            return WebResult::Failure(WebError::ProtocolError);
+            return HttpHandlerResult::NotHandled();
         }
 
         return selected->Handler->Handle(context, selectedParameters);
