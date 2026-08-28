@@ -2,9 +2,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string_view>
 
-#include <ESPressio_Observable.hpp>
+#include <ESPressio_ThreadSafeObservable.hpp>
 
 #include "ESPressio_WebSocket.hpp"
 
@@ -19,13 +20,61 @@ public:
     virtual void OnWebSocketDisconnected(WebSocketConnectionId, const WebSocketCloseReason&) {}
 };
 
-class WebSocketEndpoint final :
-    public Observable::Observable,
-    private IWebSocketEndpointPlatformSink {
+class WebSocketEndpoint final : private IWebSocketEndpointPlatformSink {
+private:
+    class EndpointObservable final : public Observable::ThreadSafeObservable {
+    public:
+        void Connected(IWebSocketConnection& connection) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketConnected(connection);
+                    }
+                );
+            });
+        }
+
+        void Binary(IWebSocketConnection& connection, const uint8_t* data, std::size_t size) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketBinary(connection, data, size);
+                    }
+                );
+            });
+        }
+
+        void Text(IWebSocketConnection& connection, std::string_view text) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketText(connection, text);
+                    }
+                );
+            });
+        }
+
+        void Disconnected(WebSocketConnectionId id, const WebSocketCloseReason& reason) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketDisconnected(id, reason);
+                    }
+                );
+            });
+        }
+    };
+
 public:
-    WebSocketEndpoint() = default;
-    explicit WebSocketEndpoint(IWebSocketEndpointPlatform& platform) { Attach(platform); }
-    ~WebSocketEndpoint() override { Detach(); }
+    WebSocketEndpoint()
+        : _observable(std::make_shared<EndpointObservable>()) {}
+
+    explicit WebSocketEndpoint(IWebSocketEndpointPlatform& platform)
+        : WebSocketEndpoint() {
+        Attach(platform);
+    }
+
+    ~WebSocketEndpoint() { Detach(); }
 
     WebSocketEndpoint(const WebSocketEndpoint&) = delete;
     WebSocketEndpoint& operator=(const WebSocketEndpoint&) = delete;
@@ -45,6 +94,14 @@ public:
     }
 
     bool IsAttached() const noexcept { return _platform != nullptr; }
+
+    Observable::ObserverHandlePtr RegisterObserver(IWebSocketEndpointObserver* observer) {
+        return _observable->template RegisterObserverAs<IWebSocketEndpointObserver>(observer);
+    }
+
+    void UnregisterObserver(IWebSocketEndpointObserver* observer) {
+        _observable->UnregisterObserver(observer);
+    }
 
     std::size_t ConnectionCount() const noexcept {
         return _platform == nullptr ? 0 : _platform->ConnectionCount();
@@ -69,15 +126,10 @@ public:
 
 private:
     IWebSocketEndpointPlatform* _platform = nullptr;
+    std::shared_ptr<EndpointObservable> _observable;
 
     void OnPlatformWebSocketConnected(IWebSocketConnection& connection) override {
-        ExecuteNotification([&](NotificationContext& context) {
-            context.WithObservers<IWebSocketEndpointObserver>(
-                [&](IWebSocketEndpointObserver* observer) {
-                    observer->OnWebSocketConnected(connection);
-                }
-            );
-        });
+        _observable->Connected(connection);
     }
 
     void OnPlatformWebSocketBinary(
@@ -85,39 +137,21 @@ private:
         const uint8_t* data,
         std::size_t size
     ) override {
-        ExecuteNotification([&](NotificationContext& context) {
-            context.WithObservers<IWebSocketEndpointObserver>(
-                [&](IWebSocketEndpointObserver* observer) {
-                    observer->OnWebSocketBinary(connection, data, size);
-                }
-            );
-        });
+        _observable->Binary(connection, data, size);
     }
 
     void OnPlatformWebSocketText(
         IWebSocketConnection& connection,
         std::string_view text
     ) override {
-        ExecuteNotification([&](NotificationContext& context) {
-            context.WithObservers<IWebSocketEndpointObserver>(
-                [&](IWebSocketEndpointObserver* observer) {
-                    observer->OnWebSocketText(connection, text);
-                }
-            );
-        });
+        _observable->Text(connection, text);
     }
 
     void OnPlatformWebSocketDisconnected(
         WebSocketConnectionId id,
         const WebSocketCloseReason& reason
     ) override {
-        ExecuteNotification([&](NotificationContext& context) {
-            context.WithObservers<IWebSocketEndpointObserver>(
-                [&](IWebSocketEndpointObserver* observer) {
-                    observer->OnWebSocketDisconnected(id, reason);
-                }
-            );
-        });
+        _observable->Disconnected(id, reason);
     }
 };
 
