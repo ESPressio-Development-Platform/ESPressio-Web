@@ -69,6 +69,8 @@ target_include_directories(espressio_web_event_integration_tests PRIVATE
 
 target_include_directories(espressio_web_websocket_event_bridge_tests PRIVATE
     ../../ESPressio-Event/src
+    ../../ESPressio-Threads/src
+    ../../ESPressio-Task/src
     ../../ESPressio-Timing/tests/stubs
     ../../ESPressio-Timing/src
     ../../ESPressio-Units/src
@@ -92,10 +94,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
         target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic -Werror)
     endforeach()
-    # ESPressio-Event's current IEventManagerObserver default callback carries
-    # named no-op parameters. Suppress only that upstream warning for this
-    # header-integration compile target so Web's own warnings remain errors.
-    target_compile_options(espressio_web_websocket_event_bridge_tests PRIVATE -Wno-unused-parameter)
 elseif(MSVC)
     foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
         target_compile_options(${target} PRIVATE /W4 /WX)
