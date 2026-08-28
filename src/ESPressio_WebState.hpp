@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string_view>
+#include <type_traits>
 
 #include <ESPressio_StateCodec.hpp>
 #include <ESPressio_StatePublisher.hpp>
@@ -23,6 +24,25 @@ inline constexpr std::string_view TypeId = "X-ESPressio-State-Type-Id";
 inline constexpr std::string_view Epoch = "X-ESPressio-State-Epoch";
 inline constexpr std::string_view Revision = "X-ESPressio-State-Revision";
 } // namespace StateHttpHeaderName
+
+namespace Detail {
+template<typename TDefinition, typename = void>
+struct HttpStateDefinitionName final {
+    static constexpr const char* Value = nullptr;
+};
+
+template<typename TDefinition>
+struct HttpStateDefinitionName<
+    TDefinition,
+    std::void_t<decltype(TDefinition::Name)>
+> final {
+    static_assert(
+        std::is_convertible_v<decltype(TDefinition::Name), const char*>,
+        "State definition Name must be convertible to const char*"
+    );
+    static constexpr const char* Value = TDefinition::Name;
+};
+} // namespace Detail
 
 template<typename TDefinition>
 class IHttpStateSnapshotRepresentation {
@@ -66,11 +86,14 @@ public:
         if (!result) return result;
         result = response.ContentType("application/octet-stream");
         if (!result) return result;
-        result = response.Header(
-            StateHttpHeaderName::Type,
-            State::StateNameOf<TDefinition>
-        );
-        if (!result) return result;
+
+        constexpr const char* typeName =
+            Detail::HttpStateDefinitionName<TDefinition>::Value;
+        if constexpr (typeName != nullptr) {
+            result = response.Header(StateHttpHeaderName::Type, typeName);
+            if (!result) return result;
+        }
+
         result = NumericHeader(
             response,
             StateHttpHeaderName::TypeId,
