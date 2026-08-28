@@ -16,6 +16,10 @@ namespace ESPressio::Web {
 class IWebSocketClientObserver : public Observable::IObserver {
 public:
     ~IWebSocketClientObserver() override = default;
+    /// <summary>Called whenever the client lifecycle state changes.</summary>
+    virtual void OnWebSocketClientStateChanged(WebSocketClientState, WebSocketClientState) {}
+    /// <summary>Called for implementation-level WebSocket client diagnostic activity.</summary>
+    virtual void OnWebSocketClientActivity(const WebSocketActivity&) {}
     virtual void OnWebSocketClientConnected(IWebSocketConnection&) {}
     virtual void OnWebSocketClientBinary(IWebSocketConnection&, const uint8_t*, std::size_t) {}
     virtual void OnWebSocketClientText(IWebSocketConnection&, std::string_view) {}
@@ -26,6 +30,26 @@ class WebSocketClient final : private IWebSocketClientPlatformSink {
 private:
     class ClientObservable final : public Observable::ThreadSafeObservable {
     public:
+        void StateChanged(WebSocketClientState previous, WebSocketClientState current) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketClientObserver>(
+                    [&](IWebSocketClientObserver* observer) {
+                        observer->OnWebSocketClientStateChanged(previous, current);
+                    }
+                );
+            });
+        }
+
+        void Activity(const WebSocketActivity& activity) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketClientObserver>(
+                    [&](IWebSocketClientObserver* observer) {
+                        observer->OnWebSocketClientActivity(activity);
+                    }
+                );
+            });
+        }
+
         void Connected(IWebSocketConnection& connection) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketClientObserver>(
@@ -89,8 +113,11 @@ public:
     WebResult Attach(IWebSocketClientPlatform& platform) {
         if (_platform == &platform) return WebResult::Success();
         if (_platform != nullptr) return WebResult::Failure(WebError::InvalidState);
+        const auto previous = _state;
         _platform = &platform;
         _platform->SetSink(this);
+        _state = platform.IsConnected() ? WebSocketClientState::Connected : WebSocketClientState::Attached;
+        _observable->StateChanged(previous, _state);
         return WebResult::Success();
     }
 
@@ -98,6 +125,7 @@ public:
         if (_platform == nullptr) return;
         _platform->SetSink(nullptr);
         _platform = nullptr;
+        SetState(WebSocketClientState::Detached);
     }
 
     Observable::ObserverHandlePtr RegisterObserver(IWebSocketClientObserver* observer) {
@@ -111,18 +139,30 @@ public:
     WebResult Connect(const WebSocketClientConfiguration& configuration) {
         if (_platform == nullptr) return WebResult::Failure(WebError::InvalidState);
         const auto validation = ValidateConfiguration(configuration);
-        return validation ? _platform->Connect(configuration) : validation;
+        if (!validation) return validation;
+        SetState(WebSocketClientState::Connecting);
+        const auto result = _platform->Connect(configuration);
+        if (!result) SetState(WebSocketClientState::Attached);
+        return result;
     }
 
     WebResult Disconnect(const WebSocketCloseReason& reason = {}) {
-        return _platform == nullptr
-            ? WebResult::Failure(WebError::InvalidState)
-            : _platform->Disconnect(reason);
+        if (_platform == nullptr) return WebResult::Failure(WebError::InvalidState);
+        if (!_platform->IsConnected()) {
+            SetState(WebSocketClientState::Disconnected);
+            return _platform->Disconnect(reason);
+        }
+        SetState(WebSocketClientState::Disconnecting);
+        const auto result = _platform->Disconnect(reason);
+        if (!result && _platform->IsConnected()) SetState(WebSocketClientState::Connected);
+        return result;
     }
 
     bool IsConnected() const noexcept {
         return _platform != nullptr && _platform->IsConnected();
     }
+
+    WebSocketClientState State() const noexcept { return _state; }
 
     IWebSocketConnection* Connection() noexcept {
         return _platform == nullptr ? nullptr : _platform->Connection();
@@ -254,8 +294,17 @@ private:
 
     IWebSocketClientPlatform* _platform = nullptr;
     std::shared_ptr<ClientObservable> _observable;
+    WebSocketClientState _state = WebSocketClientState::Detached;
+
+    void SetState(WebSocketClientState state) {
+        if (_state == state) return;
+        const auto previous = _state;
+        _state = state;
+        _observable->StateChanged(previous, state);
+    }
 
     void OnPlatformWebSocketClientConnected(IWebSocketConnection& connection) override {
+        SetState(WebSocketClientState::Connected);
         _observable->Connected(connection);
     }
 
@@ -275,7 +324,12 @@ private:
     }
 
     void OnPlatformWebSocketClientDisconnected(const WebSocketCloseReason& reason) override {
+        SetState(WebSocketClientState::Disconnected);
         _observable->Disconnected(reason);
+    }
+
+    void OnPlatformWebSocketClientActivity(const WebSocketActivity& activity) override {
+        _observable->Activity(activity);
     }
 };
 
