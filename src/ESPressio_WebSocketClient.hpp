@@ -131,6 +131,29 @@ public:
 private:
     static constexpr std::size_t MaximumHandshakeHeaderCount = 64;
 
+    static char LowerAscii(char value) noexcept {
+        return value >= 'A' && value <= 'Z'
+            ? static_cast<char>(value + ('a' - 'A'))
+            : value;
+    }
+
+    static bool HeaderNameEquals(std::string_view left, std::string_view right) noexcept {
+        if (left.size() != right.size()) return false;
+        for (std::size_t index = 0; index < left.size(); ++index) {
+            if (LowerAscii(left[index]) != LowerAscii(right[index])) return false;
+        }
+        return true;
+    }
+
+    static bool IsReservedHandshakeHeader(std::string_view name) noexcept {
+        return HeaderNameEquals(name, "Host") ||
+               HeaderNameEquals(name, "Connection") ||
+               HeaderNameEquals(name, "Upgrade") ||
+               HeaderNameEquals(name, "Sec-WebSocket-Key") ||
+               HeaderNameEquals(name, "Sec-WebSocket-Version") ||
+               HeaderNameEquals(name, "Sec-WebSocket-Protocol");
+    }
+
     static bool ContainsInvalidHeaderNameCharacter(std::string_view name) noexcept {
         if (name.empty()) return true;
         for (const unsigned char character : name) {
@@ -163,6 +186,7 @@ private:
             WebClientHeader header;
             if (!headers->Header(index, header) ||
                 ContainsInvalidHeaderNameCharacter(header.Name) ||
+                IsReservedHandshakeHeader(header.Name) ||
                 ContainsHeaderLineBreak(header.Value)) {
                 return WebResult::Failure(WebError::InvalidConfiguration);
             }
@@ -202,6 +226,12 @@ private:
             configuration.Policy.PongTimeoutMilliseconds == 0) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
+        if (configuration.Policy.TcpKeepAlive &&
+            (configuration.Policy.TcpKeepAliveIdleSeconds == 0 ||
+             configuration.Policy.TcpKeepAliveIntervalSeconds == 0 ||
+             configuration.Policy.TcpKeepAliveProbeCount == 0)) {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
 
         const auto headerValidation = ValidateHeaders(
             configuration.Headers,
@@ -213,7 +243,8 @@ private:
             return configuration.Tls.Validate();
         }
 
-        if (!configuration.Tls.ServerCertificateAuthority.Empty() ||
+        if (configuration.Tls.ServerTrust != WebTlsServerTrustMode::PlatformTrust ||
+            !configuration.Tls.ServerCertificateAuthority.Empty() ||
             !configuration.Tls.ClientCertificate.Empty() ||
             !configuration.Tls.ClientPrivateKey.Empty()) {
             return WebResult::Failure(WebError::InvalidConfiguration);
