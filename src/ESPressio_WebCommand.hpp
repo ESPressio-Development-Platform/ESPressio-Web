@@ -4,6 +4,7 @@
 #error "ESPressio Web Command integration requires ESPressio-Command and ESPressio-Event."
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -23,6 +24,12 @@ struct HttpCommandIngressConfiguration final {
 };
 
 class HttpCommandIngress final : public IHttpRouteHandler {
+private:
+    using CommandBuffer = System::Memory::Vector<
+        uint8_t,
+        System::Memory::MemoryPolicy::ExternalPreferred
+    >;
+
 public:
     WebResult Configure(const HttpCommandIngressConfiguration& configuration) {
         if (configuration.ReadChunkBytes == 0) {
@@ -58,42 +65,15 @@ public:
             );
         }
 
-        System::Memory::Vector<
-            uint8_t,
-            System::Memory::MemoryPolicy::ExternalPreferred
-        > bytes;
-        if (declaredLength.has_value()) bytes.reserve(*declaredLength);
-
-        System::Memory::Vector<
-            uint8_t,
-            System::Memory::MemoryPolicy::ExternalPreferred
-        > chunk(configuration.ReadChunkBytes);
-
-        bool end = false;
-        while (!end) {
-            const auto read = context.Request().ReadBody(chunk.data(), chunk.size());
-            if (!read) return HttpHandlerResult::Handled(read.Result);
-            if (read.BytesRead > chunk.size()) {
-                return HttpHandlerResult::Failure(WebError::ProtocolError);
-            }
-            if (bytes.size() + read.BytesRead >= ESPRESSIO_COMMAND_MAX_RAW_LENGTH) {
-                return HttpHandlerResult::Failure(WebError::RequestTooLarge);
-            }
-            bytes.insert(
-                bytes.end(),
-                chunk.begin(),
-                chunk.begin() + static_cast<std::ptrdiff_t>(read.BytesRead)
-            );
-            end = read.EndOfBody;
-            if (!end && read.BytesRead == 0) {
-                return HttpHandlerResult::Failure(WebError::ProtocolError);
-            }
-        }
-
+        CommandBuffer bytes;
+        const auto bodyResult = ReadCommandBody(
+            context.Request(),
+            declaredLength,
+            configuration.ReadChunkBytes,
+            bytes
+        );
+        if (!bodyResult) return HttpHandlerResult::Handled(bodyResult);
         if (bytes.empty()) return HttpHandlerResult::Failure(WebError::ProtocolError);
-        if (declaredLength.has_value() && bytes.size() != *declaredLength) {
-            return HttpHandlerResult::Failure(WebError::ProtocolError);
-        }
 
         Command::CommandRequestEnvelope envelope;
         envelope.RequestId = NextRequestId();
@@ -119,6 +99,71 @@ public:
     }
 
 private:
+    static WebResult ReadCommandBody(
+        HttpRequest& request,
+        std::optional<std::size_t> declaredLength,
+        std::size_t readChunkBytes,
+        CommandBuffer& bytes
+    ) {
+        constexpr std::size_t MaximumBytes = ESPRESSIO_COMMAND_MAX_RAW_LENGTH - 1;
+
+        if (declaredLength.has_value()) {
+            bytes.resize(*declaredLength);
+            std::size_t offset = 0;
+            while (offset < bytes.size()) {
+                const auto read = request.ReadBody(
+                    bytes.data() + offset,
+                    bytes.size() - offset
+                );
+                if (!read) return read.Result;
+                if (read.BytesRead > bytes.size() - offset) {
+                    return WebResult::Failure(WebError::ProtocolError);
+                }
+                offset += read.BytesRead;
+                if (read.EndOfBody) {
+                    return offset == bytes.size()
+                        ? WebResult::Success()
+                        : WebResult::Failure(WebError::ProtocolError);
+                }
+                if (read.BytesRead == 0) {
+                    return WebResult::Failure(WebError::ProtocolError);
+                }
+            }
+            return WebResult::Failure(WebError::ProtocolError);
+        }
+
+        bytes.reserve(std::min(readChunkBytes, MaximumBytes));
+
+        for (;;) {
+            if (bytes.size() >= MaximumBytes) {
+                return WebResult::Failure(WebError::RequestTooLarge);
+            }
+
+            const auto oldSize = bytes.size();
+            const auto capacity = std::min(
+                readChunkBytes,
+                MaximumBytes - oldSize
+            );
+            bytes.resize(oldSize + capacity);
+
+            const auto read = request.ReadBody(bytes.data() + oldSize, capacity);
+            if (!read) {
+                bytes.resize(oldSize);
+                return read.Result;
+            }
+            if (read.BytesRead > capacity) {
+                bytes.resize(oldSize);
+                return WebResult::Failure(WebError::ProtocolError);
+            }
+
+            bytes.resize(oldSize + read.BytesRead);
+            if (read.EndOfBody) return WebResult::Success();
+            if (read.BytesRead == 0) {
+                return WebResult::Failure(WebError::ProtocolError);
+            }
+        }
+    }
+
     static Command::CommandRequestId NextRequestId() noexcept {
         auto value = _nextRequestId.fetch_add(1, std::memory_order_relaxed);
         if (value == 0) value = _nextRequestId.fetch_add(1, std::memory_order_relaxed);
