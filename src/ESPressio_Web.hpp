@@ -17,6 +17,11 @@
 #include "ESPressio_WebSocketEndpoint.hpp"
 #include "ESPressio_WebSocketClient.hpp"
 
+#if __has_include(<ESPressio_Event.hpp>)
+#include "ESPressio_WebSocketEvents.hpp"
+#include "ESPressio_WebSocketEventBridge.hpp"
+#endif
+
 namespace ESPressio::Web {
 
 struct Version final {
