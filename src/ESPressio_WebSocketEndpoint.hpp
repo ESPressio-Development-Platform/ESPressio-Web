@@ -15,6 +15,10 @@ namespace ESPressio::Web {
 class IWebSocketEndpointObserver : public Observable::IObserver {
 public:
     ~IWebSocketEndpointObserver() override = default;
+    /// <summary>Called whenever the endpoint lifecycle state changes.</summary>
+    virtual void OnWebSocketEndpointStateChanged(WebSocketEndpointState, WebSocketEndpointState) {}
+    /// <summary>Called for implementation-level WebSocket diagnostic activity.</summary>
+    virtual void OnWebSocketActivity(const WebSocketActivity&) {}
     virtual void OnWebSocketConnected(IWebSocketConnection&) {}
     virtual void OnWebSocketBinary(IWebSocketConnection&, const uint8_t*, std::size_t) {}
     virtual void OnWebSocketText(IWebSocketConnection&, std::string_view) {}
@@ -25,6 +29,26 @@ class WebSocketEndpoint final : private IWebSocketEndpointPlatformSink {
 private:
     class EndpointObservable final : public Observable::ThreadSafeObservable {
     public:
+        void StateChanged(WebSocketEndpointState previous, WebSocketEndpointState current) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketEndpointStateChanged(previous, current);
+                    }
+                );
+            });
+        }
+
+        void Activity(const WebSocketActivity& activity) {
+            ExecuteNotification([&](NotificationContext& context) {
+                context.WithObservers<IWebSocketEndpointObserver>(
+                    [&](IWebSocketEndpointObserver* observer) {
+                        observer->OnWebSocketActivity(activity);
+                    }
+                );
+            });
+        }
+
         void Connected(IWebSocketConnection& connection) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -91,16 +115,20 @@ public:
     WebResult Attach(IWebSocketEndpointPlatform& platform) {
         if (_platform == &platform) return WebResult::Success();
         if (_platform != nullptr) return WebResult::Failure(WebError::InvalidState);
+        const auto previous = _state;
         _platform = &platform;
         _platform->SetSink(this);
+        _state = platform.IsBound() ? WebSocketEndpointState::Bound : WebSocketEndpointState::Attached;
+        _observable->StateChanged(previous, _state);
         return WebResult::Success();
     }
 
     void Detach() {
         if (_platform == nullptr) return;
-        (void)_platform->Unbind();
+        (void)Unbind();
         _platform->SetSink(nullptr);
         _platform = nullptr;
+        SetState(WebSocketEndpointState::Detached);
     }
 
     bool IsAttached() const noexcept { return _platform != nullptr; }
@@ -108,18 +136,30 @@ public:
         return _platform != nullptr && _platform->IsBound();
     }
 
+    WebSocketEndpointState State() const noexcept { return _state; }
+
     WebResult Bind(const WebSocketEndpointConfiguration& configuration) {
         if (_platform == nullptr) return WebResult::Failure(WebError::InvalidState);
         if (configuration.Path.empty() || configuration.Path.front() != '/') {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
-        return _platform->Bind(configuration);
+        if (IsBound()) return WebResult::Failure(WebError::AlreadyRunning);
+        SetState(WebSocketEndpointState::Binding);
+        const auto result = _platform->Bind(configuration);
+        SetState(result ? WebSocketEndpointState::Bound : WebSocketEndpointState::Attached);
+        return result;
     }
 
     WebResult Unbind() {
-        return _platform == nullptr
-            ? WebResult::Success()
-            : _platform->Unbind();
+        if (_platform == nullptr) return WebResult::Success();
+        if (!_platform->IsBound()) {
+            SetState(WebSocketEndpointState::Attached);
+            return WebResult::Success();
+        }
+        SetState(WebSocketEndpointState::Unbinding);
+        const auto result = _platform->Unbind();
+        SetState(_platform->IsBound() ? WebSocketEndpointState::Bound : WebSocketEndpointState::Attached);
+        return result;
     }
 
     Observable::ObserverHandlePtr RegisterObserver(IWebSocketEndpointObserver* observer) {
@@ -154,6 +194,14 @@ public:
 private:
     IWebSocketEndpointPlatform* _platform = nullptr;
     std::shared_ptr<EndpointObservable> _observable;
+    WebSocketEndpointState _state = WebSocketEndpointState::Detached;
+
+    void SetState(WebSocketEndpointState state) {
+        if (_state == state) return;
+        const auto previous = _state;
+        _state = state;
+        _observable->StateChanged(previous, state);
+    }
 
     void OnPlatformWebSocketConnected(IWebSocketConnection& connection) override {
         _observable->Connected(connection);
@@ -179,6 +227,10 @@ private:
         const WebSocketCloseReason& reason
     ) override {
         _observable->Disconnected(id, reason);
+    }
+
+    void OnPlatformWebSocketActivity(const WebSocketActivity& activity) override {
+        _observable->Activity(activity);
     }
 };
 
