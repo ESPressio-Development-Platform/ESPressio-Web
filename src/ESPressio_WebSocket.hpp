@@ -32,7 +32,6 @@ struct WebSocketClientConfiguration final {
 class IWebSocketConnection {
 public:
     virtual ~IWebSocketConnection() = default;
-
     virtual WebSocketConnectionId Id() const noexcept = 0;
     virtual bool IsOpen() const noexcept = 0;
     virtual WebResult SendBinary(const uint8_t* data, std::size_t size) = 0;
@@ -40,40 +39,38 @@ public:
     virtual WebResult Close(const WebSocketCloseReason& reason = {}) = 0;
 };
 
-class IWebSocketEndpointObserver {
+class IWebSocketEndpointPlatformSink {
 public:
-    virtual ~IWebSocketEndpointObserver() = default;
-    virtual void OnWebSocketConnected(IWebSocketConnection&) {}
-    virtual void OnWebSocketBinary(IWebSocketConnection&, const uint8_t*, std::size_t) {}
-    virtual void OnWebSocketText(IWebSocketConnection&, std::string_view) {}
-    virtual void OnWebSocketDisconnected(WebSocketConnectionId, const WebSocketCloseReason&) {}
+    virtual ~IWebSocketEndpointPlatformSink() = default;
+    virtual void OnPlatformWebSocketConnected(IWebSocketConnection&) = 0;
+    virtual void OnPlatformWebSocketBinary(IWebSocketConnection&, const uint8_t*, std::size_t) = 0;
+    virtual void OnPlatformWebSocketText(IWebSocketConnection&, std::string_view) = 0;
+    virtual void OnPlatformWebSocketDisconnected(WebSocketConnectionId, const WebSocketCloseReason&) = 0;
 };
 
-class IWebSocketEndpoint {
+class IWebSocketEndpointPlatform {
 public:
-    virtual ~IWebSocketEndpoint() = default;
-
-    virtual void SetObserver(IWebSocketEndpointObserver* observer) = 0;
+    virtual ~IWebSocketEndpointPlatform() = default;
+    virtual void SetSink(IWebSocketEndpointPlatformSink* sink) = 0;
     virtual std::size_t ConnectionCount() const noexcept = 0;
     virtual WebResult BroadcastBinary(const uint8_t* data, std::size_t size) = 0;
     virtual WebResult BroadcastText(std::string_view text) = 0;
     virtual WebResult CloseAll(const WebSocketCloseReason& reason = {}) = 0;
 };
 
-class IWebSocketClientObserver {
+class IWebSocketClientPlatformSink {
 public:
-    virtual ~IWebSocketClientObserver() = default;
-    virtual void OnWebSocketClientConnected(IWebSocketConnection&) {}
-    virtual void OnWebSocketClientBinary(IWebSocketConnection&, const uint8_t*, std::size_t) {}
-    virtual void OnWebSocketClientText(IWebSocketConnection&, std::string_view) {}
-    virtual void OnWebSocketClientDisconnected(const WebSocketCloseReason&) {}
+    virtual ~IWebSocketClientPlatformSink() = default;
+    virtual void OnPlatformWebSocketClientConnected(IWebSocketConnection&) = 0;
+    virtual void OnPlatformWebSocketClientBinary(IWebSocketConnection&, const uint8_t*, std::size_t) = 0;
+    virtual void OnPlatformWebSocketClientText(IWebSocketConnection&, std::string_view) = 0;
+    virtual void OnPlatformWebSocketClientDisconnected(const WebSocketCloseReason&) = 0;
 };
 
-class IWebSocketClient {
+class IWebSocketClientPlatform {
 public:
-    virtual ~IWebSocketClient() = default;
-
-    virtual void SetObserver(IWebSocketClientObserver* observer) = 0;
+    virtual ~IWebSocketClientPlatform() = default;
+    virtual void SetSink(IWebSocketClientPlatformSink* sink) = 0;
     virtual WebResult Connect(const WebSocketClientConfiguration& configuration) = 0;
     virtual WebResult Disconnect(const WebSocketCloseReason& reason = {}) = 0;
     virtual bool IsConnected() const noexcept = 0;
