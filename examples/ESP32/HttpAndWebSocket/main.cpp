@@ -13,10 +13,11 @@ public:
         WebRequestContext& context,
         const RouteParameters&
     ) override {
-        auto result = context.Response().Header(HttpHeaderName::ContentType, "text/plain");
-        if (!result) return HttpHandlerResult::Handled(result);
         return HttpHandlerResult::Handled(
-            context.Response().Send("Hello from ESPressio-Web on ESP32\n")
+            context.Response().Send(
+                "Hello from ESPressio-Web on ESP32\n",
+                "text/plain; charset=utf-8"
+            )
         );
     }
 };
@@ -65,7 +66,7 @@ RootHandler rootHandler;
 ESP32WebSocketEndpointPlatform socketPlatform(httpPlatform);
 WebSocketEndpoint socketEndpoint(socketPlatform);
 SocketObserver socketObserver;
-Observable::ObserverHandlePtr socketObserverHandle;
+ESPressio::Observable::ObserverHandlePtr socketObserverHandle;
 
 } // namespace
 
