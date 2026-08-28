@@ -1,18 +1,20 @@
 # ESPressio Web Core Development Tranche
 
-This file is the continuity record for the ESPressio-Web core development tranche. A fresh ChatGPT conversation must be able to read this file and continue from the last recorded item without reconstructing hidden context.
+This is the authoritative continuity record for the ESPressio-Web core development tranche. A fresh ChatGPT conversation must be able to read this file and continue from the exact point at which the preceding conversation ended.
 
 ## Operating rules
 
-1. Create a distinct GitHub Issue in the appropriate repository for every distinct body of work. Every commit and related work message must reference the relevant Issue number(s).
-2. When modifying any ESPressio library other than ESPressio-Web, work solely on that repository's current Working Branch. If only `main` exists, create a new Working Branch first and perform all changes there.
-3. Current explicitly supplied Working Branches at tranche start:
+1. Every distinct body of work requires a distinct GitHub Issue in the appropriate repository. Commits and related work messages must reference the relevant Issue(s).
+2. **ESPressio-Web has exactly one Working Branch for this entire tranche: `work/web-core-tranche`.** All Web work, regardless of Issue, must be committed only to this branch. Do not create Issue-specific or phase-specific Web branches.
+3. Earlier Web branches `feature/10-web-foundation`, `feature/11-websocket-migration`, `feature/12-web-core`, and accidental `tmp-ignore` are redundant historical refs. The canonical branch already contains their latest work. They must receive no further commits and may be pruned.
+4. When modifying any repository other than ESPressio-Web, work solely on that repository's current Working Branch. If only `main` exists, create one Working Branch before modification.
+5. Explicit non-Web Working Branches for this tranche:
    - ESPressio-System: `feature/1-system-memory-policy`
    - ESPressio-ESP32: `feature/1-system-memory-provider`
    - ESPressio-Security: `optimisation/23-memory-policy-transient-buffers`
    - ESPressio-Task: `feature/1-task-execution`
    - ESPressio-Command: `feature/30-async-command-routing`
-   - ESPressio-Units: `main` (create a Working Branch before modification)
+   - ESPressio-Units: `main` (create a Working Branch before any modification)
    - ESPressio-Observable: `feature/16-rtti-free-observer-registry`
    - ESPressio-Serializable: `optimisation/25-psram-buffers`
    - ESPressio-Persistence: `feature/10-platform-storage-abstractions`
@@ -23,128 +25,140 @@ This file is the continuity record for the ESPressio-Web core development tranch
    - ESPressio-State: `feature/1-state-foundation`
    - ESPressio-ESP-Now: `bugfix/39-wifi-coexistence`
    - ESPressio-WiFi: `feature/20-wifi-off-mode`
-4. Do not mutate any existing Version Numbers during this tranche. A later Release Restructuring process will handle versions.
-5. Backwards compatibility is not a goal. The platform moves forward. When an interface changes, update all known references to the latest API rather than adding compatibility shims.
-6. Treat ESPressio libraries as fully mutable for this work. There are no external consumers requiring compatibility preservation.
-7. Workarounds are not solutions. Resolve architectural/implementation issues properly; if that cannot be done safely, stop that body of work and report the blocker rather than adding a workaround.
-8. Application-visible routes are always chosen by the implementing developer. ESPressio libraries, adapters and providers must never impose fixed application URL paths.
-9. Platform/domain ownership rule: each ESPressio domain library owns its vocabulary, abstractions, lifecycle, state and behaviour; ESPressio-ESP32 owns ESP32-specific concrete implementations and native-type/result translation.
-10. Maintain this file chronologically after each meaningful tranche item, including repository, branch, Issue, commit, findings, tests and remaining work.
+   - ESPressio-Sockets: `feature/state-transport-major-release`
+6. Do not mutate any existing Version Number during this tranche. Release restructuring happens later.
+7. Backwards compatibility is not a goal. Update all consumers to the newest API; do not create compatibility shims.
+8. Treat ESPressio libraries as fully mutable. There are no external consumers requiring compatibility preservation.
+9. Workarounds are not solutions. Resolve issues properly or stop and report a genuine blocker.
+10. Application-visible routes are always chosen by the application developer. ESPressio libraries/providers/adapters must never impose fixed URLs.
+11. Domain ownership rule: an ESPressio domain library owns vocabulary, abstractions, lifecycle, state and behavior. ESPressio-ESP32 owns ESP32-specific concrete implementations and translation from Arduino/ESP-IDF/native types and results.
+12. User callbacks/Observers must never execute while an ESPressio-Web internal mutex is held.
+13. Maintain this file chronologically after every meaningful body of work, including repositories, branches, Issues, commits, test status, findings and remaining work.
 
-## Agreed ESPressio-Web architecture
+## Agreed Web architecture
 
-- Decomposed platform interfaces rather than one monolithic Web platform interface.
-- Borrowed synchronous HTTP request contexts; no retained/deferred HTTP response completion.
-- Lazy header/query/route-parameter lookup where practical.
-- Streaming/bounded request bodies and responses.
-- Async application operations acknowledge over HTTP (typically `202 Accepted`) and use appropriate asynchronous transports for later information flow.
-- Optional HTTP adapters for ESPressio primitives; State GET is point-in-time synchronous state retrieval, while inbound async Command/Event operations acknowledge acceptance without pretending completion.
-- Every primitive adapter is application-published at a developer-selected route.
-- Runtime route registration and unregistration.
-- Deterministic exact/named-parameter routing initially; regex routing deferred.
-- Unhandled HTTP paths may resolve through static-resource serving; filesystem access remains ESPressio-Persistence's responsibility.
-- Developer-configurable error responses may be static, resource-backed, or custom handlers.
-- Middleware uses a chain capable of short-circuiting.
-- HTTP handlers execute in the underlying platform's chosen request context; Web does not silently marshal requests onto ESPressio Threads. Application route targets must therefore be thread-safe.
-- ESPressio-Observable is a core dependency for lifecycle/listener registration; optional bridges/adapters expose Event/State/etc.
-- Concrete implementations declare capabilities using ESPressio-Web vocabulary.
-- WebSocket is first-version scope; SSE is deferred.
-- WebSocket protocol/server/client ownership moves from ESPressio-Sockets into ESPressio-Web. ESPressio-Sockets retains generic TCP/UDP/socket-oriented concerns and transport-neutral protocol machinery.
-- DNS is a first-class ESPressio-Web concern sufficient to let applications build captive portals, but ESPressio-Web never imposes captive-portal pages/endpoints/actions.
-- Providers/services may inspect complete HTTP metadata, including Content-Type and Accept, before selecting serialization/deserialization behaviour. Core HTTP transport remains representation-agnostic.
-- Security semantics may be consumed from ESPressio-Security; target-specific TLS/HTTPS mechanics belong in ESPressio-ESP32.
+- Platform-neutral Web API; no ESP32/Arduino/ESP-IDF/lwIP types in ESPressio-Web public interfaces.
+- Decomposed platform contracts rather than one monolithic platform interface.
+- Borrowed synchronous HTTP request contexts. HTTP requests/responses may not be retained for deferred completion.
+- Low-copy metadata: path/query are borrowed views; headers are lazily retrieved into caller-owned bounded storage rather than materialized into maps.
+- Request bodies and responses use streaming/bounded APIs.
+- Long-running application operations acknowledge synchronously over HTTP (normally `202 Accepted`) and deliver later results through appropriate async facilities.
+- Runtime route registration/removal; exact and named-parameter routes initially. Regex is deferred.
+- Deterministic route precedence. No application URL convention is imposed.
+- Middleware supports ordered chaining and short-circuiting.
+- Unhandled routes may fall through to static resource resolution. Storage/filesystem access remains owned by ESPressio-Persistence.
+- Error responses are configurable and may be static, Persistence-backed, or handler-generated.
+- HTTP handlers execute in the platform request-processing context. Web does not silently marshal requests to ESPressio Threads.
+- Observable is a core lifecycle/listener dependency; Event/State/Command/etc. integrations are opt-in.
+- WebSocket is Web-domain ownership and first-version scope. SSE is deferred.
+- ESPressio-Sockets retains generic TCP/UDP/socket framing and reusable transport-neutral protocol machinery; it does not own WebSocket.
+- DNS is a first-class Web mechanism sufficient for application-built captive portals, but Web never imposes captive portal pages/routes/actions.
+- HTTP core is representation agnostic. Optional providers/adapters may inspect complete request metadata including Content-Type and Accept before selecting serialization behavior.
+- Web authentication/authorization semantics may consume ESPressio-Security; cryptography/key ownership remains Security. ESP32 TLS mechanics belong in ESPressio-ESP32.
 
-## Deferred feature Issues created
+## Deferred Feature Issues
 
-- ESPressio-Web #2 — regular-expression route matching
-- ESPressio-Web #3 — Server-Sent Events
-- ESPressio-Web #4 — multipart/form-data streaming
-- ESPressio-Web #5 — HTTP response compression
-- ESPressio-Web #6 — byte-range requests
-- ESPressio-Web #7 — conditional requests/cache validation
-- ESPressio-Web #8 — configurable HTTP caching policies
-- ESPressio-Web #9 — HTTP/2
+- Web #2 — regex route matching
+- Web #3 — Server-Sent Events
+- Web #4 — multipart/form-data streaming
+- Web #5 — response compression
+- Web #6 — byte-range requests
+- Web #7 — conditional requests/cache validation
+- Web #8 — configurable HTTP cache policies
+- Web #9 — HTTP/2
 
 ## Active tranche Issues
 
-- ESPressio-Web #10 — establish repository foundation and structure
-- ESPressio-Web #11 — migrate WebSocket ownership and ESPressio primitive transports into Web
-- ESPressio-Web #12 — implement Web core HTTP/routing/middleware/DNS/resources/adapters
-- ESPressio-Web #13 — audit all consumers of Sockets WebSocket APIs
-- ESPressio-Web #14 — document/test application-owned routes and MIME-aware service/provider composition
-- ESPressio-Sockets #33 — remove WebSocket ownership and WebSocket-specific transports from Sockets
-- ESPressio-ESP32 #6 — implement ESP32 concrete HTTP/WebSocket/DNS providers
+- Web #10 — repository foundation
+- Web #11 — WebSocket ownership/transport migration
+- Web #12 — umbrella Web core tranche
+- Web #13 — Sockets WebSocket consumer audit
+- Web #14 — application-owned routes and MIME-aware composition
+- Web #15 — consolidate tranche to one Web Working Branch / remove redundant refs
+- Web #16 — HTTP vocabulary, request/response contracts, server lifecycle
+- Web #17 — runtime routing and middleware
+- Web #18 — Persistence-backed static resources and configurable errors
+- Web #19 — DNS abstractions/lifecycle
+- Web #20 — State/Command/Event HTTP adapters
+- Web #21 — request-aware service/provider composition
+- Sockets #33 — remove WebSocket ownership from Sockets
+- ESP32 #6 — ESP32 HTTP/WebSocket/DNS implementations
 
 ## Chronological work log
 
 ### 2026-08-28 — tranche initialization
 
-- Created deferred feature Issues #2 through #9 in ESPressio-Web.
-- Created active Issues #10 through #14 in ESPressio-Web, #33 in ESPressio-Sockets, and #6 in ESPressio-ESP32.
-- Created ESPressio-Web Working Branch `feature/10-web-foundation` from `main`.
-- Identified ESPressio-Sockets current Working Branch as `feature/state-transport-major-release`; all Sockets mutations for this tranche are restricted to that branch.
-- Confirmed ESPressio-ESP32 Working Branch `feature/1-system-memory-provider`; all ESP32 mutations for this tranche are restricted to that branch.
-- Inspected current/legacy Sockets WebSocket implementations and confirmed that their server/client ownership, worker loops, heartbeat handling and frame I/O are Web-domain responsibilities.
-- Confirmed generic `Event::IEventTransport` is transport-neutral.
-- Confirmed `SocketCommandSession` already accepts an inbound byte feed plus outbound writer callback, allowing it to remain reusable protocol/session machinery rather than WebSocket ownership.
-- Initialized ESPressio-Web repository structure on `feature/10-web-foundation`, including README, build metadata, host-test scaffolding, platform-abstraction documentation, split `examples/Implementors` and `examples/ESP32` areas, and this continuity file.
-- An empty temporary branch `tmp-ignore` was accidentally created during connector write-path testing. It contains no code changes and is not part of the development flow; ESPressio-Web #15 records its eventual cleanup.
+- Created deferred Web Issues #2-#9 and initial active Issues #10-#14; later decomposed remaining core into #16-#21.
+- Initialized Web repository structure based on mature ESPressio libraries: metadata, ESP-IDF component files, host-test scaffolding, CI, `PLATFORM_ABSTRACTIONS.md`, `examples/Implementors`, `examples/ESP32`, README, and this continuity file.
+- Original work was incorrectly split across `feature/10-web-foundation`, `feature/11-websocket-migration`, and `feature/12-web-core`; an empty `tmp-ignore` ref was also created while testing connector writes. This branch model was later corrected under #15.
 
-### 2026-08-28 — WebSocket abstraction and transport migration
+### 2026-08-28 — WebSocket ownership migration (#11)
 
-ESPressio-Web branch: `feature/11-websocket-migration`.
-
-- Fast-forwarded the WebSocket migration branch to the completed foundation baseline before migration work.
-- Added platform-neutral Web result/capability vocabulary (`ESPressio_WebTypes.hpp`) in commit `63cfe783b50bab4763b8a6ce0d65e12845ebaeea` (#11 #12).
-- Added decomposed WebSocket contracts (`IWebSocketConnection`, endpoint/client platform interfaces and platform sinks) and then refined them so the concrete platform has one sink into Web while Web owns listener fan-out.
+- Added platform-neutral Web result/capability vocabulary.
+- Added WebSocket connection, endpoint platform and client platform contracts.
 - Added Web-owned `WebSocketEndpoint` and `WebSocketClient` facades.
-- Found and corrected an Observable lifetime defect before further layering: current Observable notification objects require shared ownership. Reworked endpoint/client listener dispatch to use internally shared `ThreadSafeObservable` notification objects, matching the current WiFi architecture. Fix commits: `86647ddc646226bcc1aaa6f3f0932704d7b2fca9` and `a18ad90aa4b5304766537a1cd56767e7c810630e` (#11).
-- Migrated WebSocket Event transport into ESPressio-Web as an adapter over `WebSocketEndpoint`/`WebSocketClient`; it no longer owns a WebSocket library, server, worker, port or route. Initial commit `1186e8f0718aa3d0aff59baebf82713945e672a9`, receiver-synchronization correction `5e0763a7b8d8ad1836aa137d9f82bc9750ebbbcf` (#11).
-- Preserved callback thread safety by copying the Event receiver pointer under its mutex and invoking the receiver after releasing that mutex.
-- Migrated WebSocket clock synchronization into ESPressio-Web as an endpoint/client adapter in commit `284e3493e4b45c794442a839b3a8387c180dad2c` (#11 #33). It reuses the existing transport-neutral Sockets clock wire protocol and uses `PrecisionThread` only for optional periodic synchronization scheduling; WebSocket I/O itself remains platform-owned.
+- Corrected Observable lifetime/thread-safety by using internally shared `ThreadSafeObservable` notification objects, following the current WiFi pattern. Relevant fixes included `86647ddc646226bcc1aaa6f3f0932704d7b2fca9` and `a18ad90aa4b5304766537a1cd56767e7c810630e`.
+- Migrated Event-over-WebSocket into Web. It attaches to an application-owned endpoint/client and owns no server, port, route, worker or external platform library. Initial migration `1186e8f0718aa3d0aff59baebf82713945e672a9`; receiver synchronization fix `5e0763a7b8d8ad1836aa137d9f82bc9750ebbbcf`.
+- Migrated WebSocket clock synchronization into Web in `284e3493e4b45c794442a839b3a8387c180dad2c`. It reuses Sockets' transport-neutral synchronization wire protocol. A `PrecisionThread` is used only for optional periodic client requests; WebSocket I/O itself stays platform-owned.
+- Added host WebSocket fakes/tests and corrected CI multi-repository workspace layout. Canonical migration baseline CI succeeded in GitHub Actions run `33155806592`.
 
-### 2026-08-28 — Sockets ownership cleanup
+### 2026-08-28 — Sockets cleanup (#33, branch `feature/state-transport-major-release` only)
 
-ESPressio-Sockets branch: `feature/state-transport-major-release` only.
+- Found portable clock synchronization types incorrectly mixed with UDP `IPAddress` configuration.
+- Split portable synchronization config from UDP-only config rather than duplicating protocol logic:
+  - `16b910068792f9c7a07d61fdfd30467d19fd73a4`
+  - `cc1b75e7a7c8b589cf76b6603172491a1e31f8e0`
+  - `742f0eacfe4dad7221b349d53cc56673501a5b49`
+- Removed Sockets WebSocket clock wrapper, stale WebSocket examples, compatibility transport forwarder, WebSocket clock umbrella inclusion, and WebSocket package/docs ownership claims.
+- Kept Sockets version `0.7.3` unchanged.
+- Recursive tree verification after cleanup found no WebSocket-named source/example path remaining in the active Sockets branch.
 
-- Discovered that current Sockets clock protocol types mixed portable synchronization configuration with UDP `IPAddress`, which would have leaked an Arduino type into ESPressio-Web.
-- Split portable clock synchronization types from UDP-specific configuration rather than duplicating the protocol in Web:
-  - `16b910068792f9c7a07d61fdfd30467d19fd73a4` — portable clock types (#32 #33).
-  - `cc1b75e7a7c8b589cf76b6603172491a1e31f8e0` — new UDP-specific clock configuration header (#32 #33).
-  - `742f0eacfe4dad7221b349d53cc56673501a5b49` — explicit UDP include update (#32 #33).
-- Removed the WebSocket clock synchronization wrapper from Sockets (`250bcb3a4b88cf630a71e4af5805c38441bfa0ce`, #33).
-- Removed the historical concrete Event transport compatibility forwarder rather than preserving a compatibility shim (`dc2f35b764e85f09d969c91a5359ff7d6ff98396`, #33).
-- Removed stale WebSocket Event and clock synchronization examples from Sockets (#33).
-- Removed WebSocket from the Sockets clock umbrella (`724f31b043f45542f30d732595916e07ceedeef6`, #33).
-- Removed WebSocket ownership/dependency claims from Sockets package metadata while leaving version `0.7.3` unchanged (`880cab3bdaabaddfab1c213a118808d888bba7dc`, `5767c636cdc1262bf55eee2eb651eaa6fe043904`, #33).
-- Rewrote the active-branch README to make Sockets ownership explicitly TCP/UDP/generic-socket oriented and ESPressio-Web ownership explicitly WebSocket-oriented (`f170f1c0c67586f4223773f25cc3ea77d6e9f66d`, #33).
+### 2026-08-28 — ESP32 obsolete WebSocket transport removal (#6, branch `feature/1-system-memory-provider` only)
 
-### 2026-08-28 — ESP32 obsolete WebSocket transport removal
-
-ESPressio-ESP32 branch: `feature/1-system-memory-provider` only.
-
-- The previous platform-abstraction tranche had already moved the Links2004 WebSocket Event transports out of Sockets into ESPressio-ESP32. They were therefore the live obsolete concrete transports requiring removal during this migration.
-- Removed `ESPressio_WebSocketServerEventTransport.hpp` (`6d5de311fd3cac88f645de7acb6fb4f8d6d7774b`, #6 / Web #11).
-- Removed `ESPressio_WebSocketClientEventTransport.hpp` (`606988970f1536c2b510bef7c9b573d696bdad72`, #6 / Web #11).
-- Removed their conditional inclusion from `ESPressio_ESP32SocketTransports.hpp` (`1d7ceb3120ee14707f7da65c82c5fbeab8758637`, #6 / Web #11).
-- No ESP32 version number was changed.
-- New ESP32 WebSocket/HTTP/DNS concrete implementations still need to be built against the new ESPressio-Web contracts under ESPressio-ESP32 #6.
+- Removed obsolete Links2004 `ESPressio_WebSocketServerEventTransport.hpp` and `ESPressio_WebSocketClientEventTransport.hpp`.
+- Removed their conditional exposure from `ESPressio_ESP32SocketTransports.hpp`.
+- ESP32 version remained unchanged.
+- Replacement ESP32 implementations against Web-owned contracts are still pending under ESP32 #6.
 
 ### 2026-08-28 — WebSocket consumer audit (#13)
 
-- GitHub's code-search index returned false negatives even for known Sockets WebSocket source, so it was explicitly rejected as an authoritative audit source.
-- Performed a dependency-metadata audit on every user-supplied current working branch: System, ESP32, Security, Task, Command, Units, Observable, Serializable, Persistence, Timing, Threads, Event, Serial, State, ESP-Now and WiFi.
-- None of Event, Command, State, Timing, WiFi, Serial, ESP-Now, Security, Task, System, Persistence, Observable, Serializable, Threads or Units declares Sockets as a dependency on its current working branch.
-- ESPressio-ESP32 was the only live platform-level location containing the obsolete WebSocket Event transport implementation; those files and their umbrella exposure have now been removed.
-- A second recursive-tree pass found no WebSocket-named source/example surfaces in Event, Command, State, Timing, WiFi, Threads, Serial, ESP-Now or Security on the mandated current branches.
-- Result: no additional ESPressio library code migrations have been identified beyond Sockets and ESP32. Continue to treat any later-discovered stale include as an API migration defect to update directly, never as a reason to add compatibility aliases.
+- GitHub code search produced known false negatives and was rejected as authoritative.
+- Audited dependency metadata on every supplied current Working Branch.
+- Event, Command, State, Timing, WiFi, Serial, ESP-Now, Security, Task, System, Persistence, Observable, Serializable, Threads and Units do not declare Sockets as a dependency on those working branches.
+- Recursive tree checks also found no WebSocket-named source/example surfaces in Event, Command, State, Timing, WiFi, Threads, Serial, ESP-Now or Security.
+- ESPressio-ESP32 was the only live non-Sockets location exposing obsolete WebSocket transports; those were removed as above.
+- Result: no additional ESPressio library consumer migrations identified.
+
+### 2026-08-28 — single Web Working Branch consolidation (#15)
+
+- User explicitly rejected concurrent Issue/phase branches for Web.
+- Canonical branch selected: `work/web-core-tranche`.
+- Fast-forwarded `work/web-core-tranche` to `0ff9dd1d0cdf1cb1a4d0ea756967820e6a259f50`, which was the exact latest head of the prior `feature/12-web-core` line and already contained all foundation and WebSocket migration history.
+- No work is stranded on `feature/10-web-foundation`, `feature/11-websocket-migration`, or `feature/12-web-core`.
+- `tmp-ignore` contains no work.
+- The connected GitHub interface does not expose branch-ref deletion, so these four redundant refs cannot be pruned by ChatGPT. They are safe for the user to delete. **Do not write to them again.**
+- Updated Web #15 to document the canonical branch and redundant refs.
+- From this point forward every Web Issue is implemented sequentially on `work/web-core-tranche` only.
+
+### 2026-08-28 — HTTP foundation in progress (#16/#12, canonical branch only)
+
+- Commit `0ff9dd1d0cdf1cb1a4d0ea756967820e6a259f50`: added `ESPressio_Http.hpp` containing HTTP method/status/transport/response-state vocabulary, server configuration, lazy bounded header access, borrowed path/query views, streamed body reads, streamed/chunk-compatible response writes, and borrowed `WebRequestContext`.
+- HTTP core deliberately avoids per-request maps/vectors for metadata and avoids automatically buffering request/response bodies.
+- Commit `c1fd19088cab261a78bb700fd6bc41751c9e2038`: added decomposed `IHttpServerPlatform`, dispatcher/handler contracts and Web-owned HTTP lifecycle facade.
+- Immediately identified that the first Ready/Faulted Stop path notified Observers under the server mutex. Corrected in `51909e13ea6d81ffa39d247852259d6a1caab142`; all lifecycle notifications now occur outside the server lock.
+- Handler replacement is disallowed while Starting/Running/Stopping so a request dispatch cannot race against replacement of its handler object. Runtime route mutation will instead be implemented inside the long-lived router under #17.
+- Added HTTP host tests in `187d026836283baf214592a530689abd0213aba5`, covering lazy header access, streamed body reads, response state, server lifecycle, platform dispatch, capability reporting, and Observer re-entry into `HttpServer::State()`.
+- Exposed HTTP core/server from the normal Web umbrella in `f69a54613f92403abd5c94b1eba7dcb9ddd660de`.
+- Added HTTP tests to CMake/ctest in `d461f5465ec644ea1cdc3bafea42652fe29b6559`.
+- GitHub Actions run `33156913241` was started for this HTTP baseline. Its final result must be checked before #17 routing implementation is considered validated.
 
 ## Current next work
 
-1. Finish WebSocket migration validation: Web umbrella/test coverage and any remaining current-branch Sockets/ESP32 documentation references (#11/#33/#6).
-2. Advance `feature/12-web-core` to the latest `feature/11-websocket-migration` head before any #12 work.
-3. Implement HTTP vocabulary, decomposed HTTP platform contracts, synchronous request context, lazy metadata access, streaming body/response contracts, response state, routing, middleware, static-resource fallback, configurable errors and lifecycle (#12/#14).
-4. Implement DNS abstractions and lifecycle sufficient for application-defined captive portals (#12).
-5. Implement optional State/Command/Event HTTP adapters and representation-aware provider/service composition, with application-owned routes (#12/#14).
-6. Implement ESP32 HTTP/WebSocket/DNS concrete providers solely on `feature/1-system-memory-provider` (#6).
-7. Add host tests, platform-implementor examples and ESP32 consumer examples; keep this file updated after each meaningful tranche item.
+1. Check/fix canonical branch CI for HTTP baseline run `33156913241` (#16/#12).
+2. Finish #16 validation and documentation on `work/web-core-tranche` only.
+3. Implement runtime router and middleware under #17 on the same branch. Route-table reads/mutations must be thread-safe, user handlers must execute outside locks, and routes remain application-owned.
+4. Implement Persistence-backed static resources/configurable errors (#18).
+5. Implement DNS abstractions/lifecycle (#19).
+6. Implement request-aware provider/service composition (#21) and optional State/Command/Event HTTP adapters (#20).
+7. Implement ESP32 HTTP/WebSocket/DNS concrete providers solely on ESP32 `feature/1-system-memory-provider` (#6).
+8. Add Implementor and ESP32 consumer examples, expand host/integration tests, update README/PLATFORM_ABSTRACTIONS, and keep this file current.
