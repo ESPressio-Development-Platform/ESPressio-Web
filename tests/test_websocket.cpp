@@ -162,6 +162,19 @@ public:
     std::string LastText;
 };
 
+class FakeHeaderSource final : public IWebClientHeaderSource {
+public:
+    std::size_t Count() const noexcept override { return Headers.size(); }
+
+    bool Header(std::size_t index, WebClientHeader& header) const noexcept override {
+        if (index >= Headers.size()) return false;
+        header = Headers[index];
+        return true;
+    }
+
+    std::vector<WebClientHeader> Headers;
+};
+
 class FakeClientPlatform final : public IWebSocketClientPlatform {
 public:
     explicit FakeClientPlatform(FakeConnection& connection) : _connection(connection) {}
@@ -169,9 +182,11 @@ public:
     void SetSink(IWebSocketClientPlatformSink* sink) override { Sink = sink; }
 
     WebResult Connect(const WebSocketClientConfiguration& configuration) override {
+        ++ConnectCalls;
         LastHost.assign(configuration.Host.data(), configuration.Host.size());
         LastPath.assign(configuration.Path.data(), configuration.Path.size());
         LastPort = configuration.Port;
+        LastTransport = configuration.Transport;
         Connected = true;
         if (Sink != nullptr) Sink->OnPlatformWebSocketClientConnected(_connection);
         return WebResult::Success();
@@ -196,7 +211,9 @@ public:
 
     IWebSocketClientPlatformSink* Sink = nullptr;
     bool Connected = false;
+    int ConnectCalls = 0;
     uint16_t LastPort = 0;
+    WebTransportMode LastTransport = WebTransportMode::Plain;
     std::string LastHost;
     std::string LastPath;
 
@@ -321,9 +338,11 @@ void TestClientFacade() {
 
     assert(client.Connect(configuration));
     assert(client.IsConnected());
+    assert(platform.ConnectCalls == 1);
     assert(platform.LastHost == "device.local");
     assert(platform.LastPort == 8080);
     assert(platform.LastPath == "/custom/socket");
+    assert(platform.LastTransport == WebTransportMode::Plain);
     assert(observer.Connected == 1);
     assert(observer.LastConnection == 99);
 
@@ -348,10 +367,104 @@ void TestClientFacade() {
     assert(observer.LastCloseCode == 1000);
 }
 
+void TestClientConfigurationValidation() {
+    FakeConnection connection(100);
+    FakeClientPlatform platform(connection);
+    WebSocketClient client(platform);
+
+    WebSocketClientConfiguration configuration;
+    configuration.Host = "secure.example";
+    configuration.Port = 443;
+    configuration.Path = "/socket";
+
+    auto invalid = configuration;
+    invalid.Host = {};
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    invalid = configuration;
+    invalid.Path = "relative";
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    invalid = configuration;
+    invalid.Policy.NetworkTimeoutMilliseconds = 0;
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    invalid = configuration;
+    invalid.Policy.AutomaticReconnect = true;
+    invalid.Policy.ReconnectDelayMilliseconds = 0;
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    static constexpr uint8_t Ca[] = "-----BEGIN CERTIFICATE-----\nCA\n-----END CERTIFICATE-----\n";
+    static constexpr uint8_t ClientCertificate[] = "client certificate";
+    static constexpr uint8_t ClientKey[] = "client key";
+
+    invalid = configuration;
+    invalid.Transport = WebTransportMode::Tls;
+    invalid.Tls.ServerTrust = WebTlsServerTrustMode::CertificateAuthority;
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    invalid = configuration;
+    invalid.Transport = WebTransportMode::Tls;
+    invalid.Tls.ClientCertificate = {ClientCertificate, sizeof(ClientCertificate)};
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    invalid = configuration;
+    invalid.Tls.ServerCertificateAuthority = {Ca, sizeof(Ca)};
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    FakeHeaderSource invalidHeaders;
+    invalidHeaders.Headers.push_back({"X-Test", "value\r\nInjected: true"});
+    invalid = configuration;
+    invalid.Headers = &invalidHeaders;
+    assert(client.Connect(invalid).Error == WebError::InvalidConfiguration);
+    assert(platform.ConnectCalls == 0);
+
+    FakeHeaderSource oversizedHeaders;
+    oversizedHeaders.Headers.push_back({"X-Large", "1234567890"});
+    invalid = configuration;
+    invalid.Headers = &oversizedHeaders;
+    invalid.Policy.MaximumHandshakeHeaderBytes = 8;
+    assert(client.Connect(invalid).Error == WebError::ResourceExhausted);
+    assert(platform.ConnectCalls == 0);
+
+    FakeHeaderSource validHeaders;
+    validHeaders.Headers.push_back({"Authorization", "Bearer token"});
+    validHeaders.Headers.push_back({"X-Application", "ESPressio"});
+
+    auto secure = configuration;
+    secure.Transport = WebTransportMode::Tls;
+    secure.Tls.ServerTrust = WebTlsServerTrustMode::CertificateAuthority;
+    secure.Tls.ServerCertificateAuthority = {Ca, sizeof(Ca)};
+    secure.Tls.ClientCertificate = {ClientCertificate, sizeof(ClientCertificate)};
+    secure.Tls.ClientPrivateKey = {ClientKey, sizeof(ClientKey)};
+    secure.Headers = &validHeaders;
+    secure.Policy.AutomaticReconnect = true;
+    secure.Policy.ReconnectDelayMilliseconds = 2500;
+
+    assert(client.Connect(secure));
+    assert(platform.ConnectCalls == 1);
+    assert(platform.LastTransport == WebTransportMode::Tls);
+    assert(client.Disconnect());
+
+    auto platformTrust = configuration;
+    platformTrust.Transport = WebTransportMode::Tls;
+    assert(client.Connect(platformTrust));
+    assert(platform.ConnectCalls == 2);
+    assert(client.Disconnect());
+}
+
 } // namespace
 
 int main() {
     TestEndpointFacade();
     TestClientFacade();
+    TestClientConfigurationValidation();
     return 0;
 }
