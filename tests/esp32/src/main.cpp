@@ -17,11 +17,17 @@ public:
     }
 };
 
-ESPressio::Web::ESP32HttpServerPlatform platform;
-ESPressio::Web::HttpServer server(platform);
+ESPressio::Web::ESP32HttpServerPlatform httpPlatform;
+ESPressio::Web::HttpServer httpServer(httpPlatform);
 ESPressio::Web::Router router;
 ESPressio::Web::HttpApplication application(&router);
 RootHandler root;
+
+ESPressio::Web::ESP32DnsServerPlatform dnsPlatform;
+ESPressio::Web::DnsServer dnsServer(dnsPlatform);
+ESPressio::Web::WildcardDnsHandler wildcardDns(
+    ESPressio::Web::DnsAddress::IPv4(192, 168, 4, 1)
+);
 
 } // namespace
 
@@ -33,11 +39,16 @@ void setup() {
         root,
         route
     );
-    (void)server.SetRequestHandler(&application);
+    (void)httpServer.SetRequestHandler(&application);
 
-    ESPressio::Web::HttpServerConfiguration configuration;
-    configuration.Port = 80;
-    (void)server.Initialize(configuration);
+    ESPressio::Web::HttpServerConfiguration httpConfiguration;
+    httpConfiguration.Port = 80;
+    (void)httpServer.Initialize(httpConfiguration);
+
+    (void)dnsServer.SetRequestHandler(&wildcardDns);
+    ESPressio::Web::DnsServerConfiguration dnsConfiguration;
+    dnsConfiguration.Port = 53;
+    (void)dnsServer.Initialize(dnsConfiguration);
 }
 
 void loop() {}
