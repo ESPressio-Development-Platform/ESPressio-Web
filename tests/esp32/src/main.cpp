@@ -23,10 +23,8 @@ ESPressio::Web::Router router;
 ESPressio::Web::HttpApplication application(&router);
 RootHandler root;
 
-#ifdef CONFIG_HTTPD_WS_SUPPORT
 ESPressio::Web::ESP32WebSocketEndpointPlatform webSocketPlatform(httpPlatform);
 ESPressio::Web::WebSocketEndpoint webSocketEndpoint(webSocketPlatform);
-#endif
 
 ESPressio::Web::ESP32DnsServerPlatform dnsPlatform;
 ESPressio::Web::DnsServer dnsServer(dnsPlatform);
@@ -55,12 +53,10 @@ void setup() {
         headRoute
     );
 
-#ifdef CONFIG_HTTPD_WS_SUPPORT
     ESPressio::Web::WebSocketEndpointConfiguration webSocketConfiguration;
     webSocketConfiguration.Path = "/application/socket";
     webSocketConfiguration.Protocol = "espressio.v1";
     (void)webSocketEndpoint.Bind(webSocketConfiguration);
-#endif
 
     (void)httpServer.SetRequestHandler(&application);
 
