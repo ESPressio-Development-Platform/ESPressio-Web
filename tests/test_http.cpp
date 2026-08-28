@@ -19,7 +19,7 @@ class FakeRequest final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Get;
     std::string PathValue = "/status";
-    std::string QueryValue = "verbose=1";
+    std::string QueryValue = "verbose=1&empty=&flag";
     std::optional<std::size_t> Length;
     std::unordered_map<std::string, std::string> Headers;
     std::vector<uint8_t> Body;
@@ -29,12 +29,13 @@ public:
     std::string_view Path() const noexcept override { return PathValue; }
     std::string_view QueryString() const noexcept override { return QueryValue; }
     std::optional<std::size_t> ContentLength() const noexcept override { return Length; }
-
+    bool HasHeader(std::string_view name) const noexcept override {
+        return Headers.find(std::string(name)) != Headers.end();
+    }
     std::size_t HeaderValueLength(std::string_view name) const noexcept override {
         const auto it = Headers.find(std::string(name));
         return it == Headers.end() ? 0 : it->second.size();
     }
-
     WebResult ReadHeader(
         std::string_view name,
         char* destination,
@@ -48,7 +49,6 @@ public:
         bytesWritten = it->second.size();
         return WebResult::Success();
     }
-
     HttpReadResult ReadBody(uint8_t* destination, std::size_t capacity) override {
         const std::size_t remaining = Body.size() - BodyOffset;
         const std::size_t count = remaining < capacity ? remaining : capacity;
@@ -145,6 +145,7 @@ public:
 void TestRequestAndResponse() {
     FakeRequest request;
     request.Headers["Content-Type"] = "application/json";
+    request.Headers["X-Empty"] = "";
     request.Body = {1, 2, 3, 4};
     request.Length = request.Body.size();
     FakeResponse response;
@@ -152,8 +153,13 @@ void TestRequestAndResponse() {
 
     assert(context.Request().Method() == HttpMethod::Get);
     assert(context.Request().Path() == "/status");
-    assert(context.Request().QueryString() == "verbose=1");
-    assert(context.Request().HeaderValueLength("Content-Type") == 16);
+    assert(context.Request().HasHeader("Content-Type"));
+    assert(context.Request().HasHeader("X-Empty"));
+    assert(context.Request().HeaderValueLength("X-Empty") == 0);
+    assert(context.Request().QueryValue("verbose") == std::optional<std::string_view>("1"));
+    assert(context.Request().QueryValue("empty") == std::optional<std::string_view>(""));
+    assert(context.Request().QueryValue("flag") == std::optional<std::string_view>(""));
+    assert(!context.Request().QueryValue("missing").has_value());
 
     char header[32]{};
     std::size_t written = 0;
