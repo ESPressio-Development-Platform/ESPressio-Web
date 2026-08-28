@@ -11,6 +11,7 @@ enum class WebError : uint8_t {
     InvalidConfiguration,
     AlreadyRunning,
     NotRunning,
+    NotFound,
     ResourceExhausted,
     ConnectionFailure,
     RequestTooLarge,
