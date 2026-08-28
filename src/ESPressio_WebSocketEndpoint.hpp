@@ -80,7 +80,10 @@ public:
         Attach(platform);
     }
 
-    ~WebSocketEndpoint() { Detach(); }
+    ~WebSocketEndpoint() {
+        (void)Unbind();
+        Detach();
+    }
 
     WebSocketEndpoint(const WebSocketEndpoint&) = delete;
     WebSocketEndpoint& operator=(const WebSocketEndpoint&) = delete;
@@ -95,11 +98,29 @@ public:
 
     void Detach() {
         if (_platform == nullptr) return;
+        (void)_platform->Unbind();
         _platform->SetSink(nullptr);
         _platform = nullptr;
     }
 
     bool IsAttached() const noexcept { return _platform != nullptr; }
+    bool IsBound() const noexcept {
+        return _platform != nullptr && _platform->IsBound();
+    }
+
+    WebResult Bind(const WebSocketEndpointConfiguration& configuration) {
+        if (_platform == nullptr) return WebResult::Failure(WebError::InvalidState);
+        if (configuration.Path.empty() || configuration.Path.front() != '/') {
+            return WebResult::Failure(WebError::InvalidConfiguration);
+        }
+        return _platform->Bind(configuration);
+    }
+
+    WebResult Unbind() {
+        return _platform == nullptr
+            ? WebResult::Success()
+            : _platform->Unbind();
+    }
 
     Observable::ObserverHandlePtr RegisterObserver(IWebSocketEndpointObserver* observer) {
         return _observable->template RegisterObserverAs<IWebSocketEndpointObserver>(observer);
