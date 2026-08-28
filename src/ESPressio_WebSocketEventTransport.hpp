@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
 
 #include <ESPressio_EventTransport.hpp>
 
@@ -45,22 +46,25 @@ public:
     void Detach() {
         _observerHandle.reset();
         _endpoint = nullptr;
+        std::lock_guard<std::mutex> lock(_receiverMutex);
         _receiver = nullptr;
     }
 
     bool Send(const Event::EventTransportPacket& packet) override {
+        auto* endpoint = _endpoint;
         if (
-            _endpoint == nullptr ||
+            endpoint == nullptr ||
             packet.Data == nullptr ||
             packet.Size == 0 ||
             packet.Size > _configuration.MaximumPacketBytes
         ) {
             return false;
         }
-        return static_cast<bool>(_endpoint->BroadcastBinary(packet.Data, packet.Size));
+        return static_cast<bool>(endpoint->BroadcastBinary(packet.Data, packet.Size));
     }
 
     void SetReceiver(Event::IEventTransportReceiver* receiver) override {
+        std::lock_guard<std::mutex> lock(_receiverMutex);
         _receiver = receiver;
     }
 
@@ -69,13 +73,18 @@ private:
     WebSocketEventTransportConfiguration _configuration;
     Event::IEventTransportReceiver* _receiver = nullptr;
     Observable::ObserverHandlePtr _observerHandle;
+    mutable std::mutex _receiverMutex;
 
     void OnWebSocketBinary(
         IWebSocketConnection&,
         const uint8_t* data,
         std::size_t size
     ) override {
-        auto* receiver = _receiver;
+        Event::IEventTransportReceiver* receiver = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(_receiverMutex);
+            receiver = _receiver;
+        }
         if (
             receiver == nullptr ||
             data == nullptr ||
@@ -115,24 +124,27 @@ public:
     void Detach() {
         _observerHandle.reset();
         _client = nullptr;
+        std::lock_guard<std::mutex> lock(_receiverMutex);
         _receiver = nullptr;
     }
 
     bool Send(const Event::EventTransportPacket& packet) override {
+        auto* client = _client;
         if (
-            _client == nullptr ||
+            client == nullptr ||
             packet.Data == nullptr ||
             packet.Size == 0 ||
             packet.Size > _configuration.MaximumPacketBytes
         ) {
             return false;
         }
-        auto* connection = _client->Connection();
+        auto* connection = client->Connection();
         return connection != nullptr &&
             static_cast<bool>(connection->SendBinary(packet.Data, packet.Size));
     }
 
     void SetReceiver(Event::IEventTransportReceiver* receiver) override {
+        std::lock_guard<std::mutex> lock(_receiverMutex);
         _receiver = receiver;
     }
 
@@ -141,13 +153,18 @@ private:
     WebSocketEventTransportConfiguration _configuration;
     Event::IEventTransportReceiver* _receiver = nullptr;
     Observable::ObserverHandlePtr _observerHandle;
+    mutable std::mutex _receiverMutex;
 
     void OnWebSocketClientBinary(
         IWebSocketConnection&,
         const uint8_t* data,
         std::size_t size
     ) override {
-        auto* receiver = _receiver;
+        Event::IEventTransportReceiver* receiver = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(_receiverMutex);
+            receiver = _receiver;
+        }
         if (
             receiver == nullptr ||
             data == nullptr ||
