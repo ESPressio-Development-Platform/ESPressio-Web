@@ -63,14 +63,94 @@ public:
         if (extension == "wasm") return "application/wasm";
         if (extension == "pdf") return "application/pdf";
         if (extension == "cbor") return "application/cbor";
-        if (extension == "bin") return "application/octet-stream";
         return "application/octet-stream";
     }
 };
 
-struct StaticResourceConfiguration final {
+struct ResourceResponseConfiguration final {
     std::size_t ReadChunkBytes = 1024;
 };
+
+inline bool IsSafeWebResourcePath(std::string_view path) noexcept {
+    if (path.empty() || path.front() != '/') return false;
+    if (path.find('\\') != std::string_view::npos ||
+        path.find('\0') != std::string_view::npos) {
+        return false;
+    }
+
+    std::size_t position = 1;
+    while (position <= path.size()) {
+        const auto separator = path.find('/', position);
+        const auto end = separator == std::string_view::npos ? path.size() : separator;
+        const auto segment = path.substr(position, end - position);
+        if (segment == "..") return false;
+        if (separator == std::string_view::npos) break;
+        position = separator + 1;
+    }
+    return true;
+}
+
+inline WebResult WriteWebResourceResponse(
+    IWebResourceProvider& provider,
+    std::string_view path,
+    HttpResponse& response,
+    bool headersOnly,
+    const IHttpContentTypeResolver& contentTypeResolver,
+    const ResourceResponseConfiguration& configuration = {}
+) {
+    if (!IsSafeWebResourcePath(path) || configuration.ReadChunkBytes == 0) {
+        return WebResult::Failure(WebError::InvalidConfiguration);
+    }
+
+    WebResourceMetadata metadata;
+    auto result = provider.Stat(path, metadata);
+    if (!result) return result;
+    if (metadata.IsDirectory) return WebResult::Failure(WebError::NotFound);
+    if (metadata.Size > static_cast<uint64_t>(std::numeric_limits<std::size_t>::max())) {
+        return WebResult::Failure(WebError::ResourceExhausted);
+    }
+
+    result = response.ContentType(contentTypeResolver.Resolve(path));
+    if (!result) return result;
+    result = response.Begin(static_cast<std::size_t>(metadata.Size));
+    if (!result) return result;
+
+    if (headersOnly || metadata.Size == 0) return response.Complete();
+
+    System::Memory::Vector<
+        uint8_t,
+        System::Memory::MemoryPolicy::ExternalPreferred
+    > buffer(configuration.ReadChunkBytes);
+
+    uint64_t offset = 0;
+    while (offset < metadata.Size) {
+        const uint64_t remaining = metadata.Size - offset;
+        const std::size_t requested = remaining < buffer.size()
+            ? static_cast<std::size_t>(remaining)
+            : buffer.size();
+
+        const auto read = provider.Read(path, offset, buffer.data(), requested);
+        if (!read.Result) {
+            response.Abort();
+            return read.Result;
+        }
+        if (read.BytesRead == 0 || read.BytesRead > requested) {
+            response.Abort();
+            return WebResult::Failure(WebError::ProtocolError);
+        }
+
+        result = response.Write(buffer.data(), read.BytesRead);
+        if (!result) {
+            response.Abort();
+            return result;
+        }
+        offset += read.BytesRead;
+    }
+
+    return response.Complete();
+}
+
+using StaticResourceConfiguration = ResourceResponseConfiguration;
 
 class StaticResourceHandler final : public IHttpRequestHandler {
 public:
@@ -99,89 +179,23 @@ public:
         }
 
         const auto path = context.Request().Path();
-        if (!IsSafeResourcePath(path)) {
+        if (!IsSafeWebResourcePath(path)) {
             return HttpHandlerResult::Failure(WebError::ProtocolError);
         }
 
-        WebResourceMetadata metadata;
-        const auto stat = _provider.Stat(path, metadata);
-        if (!stat) {
-            if (stat.Error == WebError::NotFound) return HttpHandlerResult::NotHandled();
-            return HttpHandlerResult::Handled(stat);
-        }
-        if (metadata.IsDirectory) return HttpHandlerResult::NotHandled();
-        if (metadata.Size > static_cast<uint64_t>(std::numeric_limits<std::size_t>::max())) {
-            return HttpHandlerResult::Failure(WebError::ResourceExhausted);
-        }
-
-        auto& response = context.Response();
-        auto result = response.ContentType(_contentTypeResolver->Resolve(path));
-        if (!result) return HttpHandlerResult::Handled(result);
-        result = response.Begin(static_cast<std::size_t>(metadata.Size));
-        if (!result) return HttpHandlerResult::Handled(result);
-
-        if (method == HttpMethod::Head || metadata.Size == 0) {
-            return HttpHandlerResult::Handled(response.Complete());
-        }
-
-        System::Memory::Vector<
-            uint8_t,
-            System::Memory::MemoryPolicy::ExternalPreferred
-        > buffer(_configuration.ReadChunkBytes);
-
-        uint64_t offset = 0;
-        while (offset < metadata.Size) {
-            const uint64_t remaining = metadata.Size - offset;
-            const std::size_t requested = remaining < buffer.size()
-                ? static_cast<std::size_t>(remaining)
-                : buffer.size();
-
-            const auto read = _provider.Read(
-                path,
-                offset,
-                buffer.data(),
-                requested
-            );
-            if (!read.Result) {
-                response.Abort();
-                return HttpHandlerResult::Handled(read.Result);
-            }
-            if (read.BytesRead == 0 || read.BytesRead > requested) {
-                response.Abort();
-                return HttpHandlerResult::Failure(WebError::ProtocolError);
-            }
-
-            result = response.Write(buffer.data(), read.BytesRead);
-            if (!result) {
-                response.Abort();
-                return HttpHandlerResult::Handled(result);
-            }
-            offset += read.BytesRead;
-        }
-
-        return HttpHandlerResult::Handled(response.Complete());
+        const auto result = WriteWebResourceResponse(
+            _provider,
+            path,
+            context.Response(),
+            method == HttpMethod::Head,
+            *_contentTypeResolver,
+            _configuration
+        );
+        if (result.Error == WebError::NotFound) return HttpHandlerResult::NotHandled();
+        return HttpHandlerResult::Handled(result);
     }
 
 private:
-    static bool IsSafeResourcePath(std::string_view path) noexcept {
-        if (path.empty() || path.front() != '/') return false;
-        if (path.find('\\') != std::string_view::npos ||
-            path.find('\0') != std::string_view::npos) {
-            return false;
-        }
-
-        std::size_t position = 1;
-        while (position <= path.size()) {
-            const auto separator = path.find('/', position);
-            const auto end = separator == std::string_view::npos ? path.size() : separator;
-            const auto segment = path.substr(position, end - position);
-            if (segment == "..") return false;
-            if (separator == std::string_view::npos) break;
-            position = separator + 1;
-        }
-        return true;
-    }
-
     IWebResourceProvider& _provider;
     DefaultHttpContentTypeResolver _defaultContentTypeResolver;
     const IHttpContentTypeResolver* _contentTypeResolver;
