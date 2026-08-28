@@ -82,7 +82,7 @@ public:
           >()) {}
 
     ~HttpServer() {
-        Stop();
+        (void)Stop();
         _platform.Reset();
     }
 
@@ -133,15 +133,11 @@ public:
         _platform.Reset();
         const auto result = _platform.Initialize(configuration, *this);
 
-        HttpServerState finalState;
+        const HttpServerState finalState =
+            result ? HttpServerState::Ready : HttpServerState::Faulted;
         {
             std::lock_guard<std::mutex> lock(_mutex);
-            if (result) {
-                _configuration = configuration;
-                finalState = HttpServerState::Ready;
-            } else {
-                finalState = HttpServerState::Faulted;
-            }
+            if (result) _configuration = configuration;
             _state = finalState;
         }
         _observable->StateChanged(HttpServerState::Initializing, finalState);
@@ -154,10 +150,7 @@ public:
             if (_state == HttpServerState::Running) {
                 return WebResult::Failure(WebError::AlreadyRunning);
             }
-            if (_state != HttpServerState::Ready && _state != HttpServerState::Stopped) {
-                return WebResult::Failure(WebError::InvalidState);
-            }
-            if (_state == HttpServerState::Stopped) {
+            if (_state != HttpServerState::Ready) {
                 return WebResult::Failure(WebError::InvalidState);
             }
             _state = HttpServerState::Starting;
@@ -176,23 +169,28 @@ public:
 
     WebResult Stop() {
         HttpServerState previous;
+        bool resetOnly = false;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             previous = _state;
             if (_state == HttpServerState::Stopped) return WebResult::Success();
             if (_state == HttpServerState::Ready || _state == HttpServerState::Faulted) {
-                _platform.Reset();
                 _state = HttpServerState::Stopped;
-                _observable->StateChanged(previous, HttpServerState::Stopped);
-                return WebResult::Success();
-            }
-            if (_state != HttpServerState::Running) {
+                resetOnly = true;
+            } else if (_state == HttpServerState::Running) {
+                _state = HttpServerState::Stopping;
+            } else {
                 return WebResult::Failure(WebError::InvalidState);
             }
-            _state = HttpServerState::Stopping;
         }
-        _observable->StateChanged(previous, HttpServerState::Stopping);
 
+        if (resetOnly) {
+            _platform.Reset();
+            _observable->StateChanged(previous, HttpServerState::Stopped);
+            return WebResult::Success();
+        }
+
+        _observable->StateChanged(previous, HttpServerState::Stopping);
         const auto result = _platform.Stop();
         const auto finalState = result ? HttpServerState::Stopped : HttpServerState::Faulted;
         {
@@ -204,9 +202,15 @@ public:
         return result;
     }
 
-    void SetRequestHandler(IHttpRequestHandler* handler) noexcept {
+    WebResult SetRequestHandler(IHttpRequestHandler* handler) noexcept {
         std::lock_guard<std::mutex> lock(_mutex);
+        if (_state == HttpServerState::Running ||
+            _state == HttpServerState::Starting ||
+            _state == HttpServerState::Stopping) {
+            return WebResult::Failure(WebError::InvalidState);
+        }
         _handler = handler;
+        return WebResult::Success();
     }
 
     IHttpRequestHandler* RequestHandler() const noexcept {
