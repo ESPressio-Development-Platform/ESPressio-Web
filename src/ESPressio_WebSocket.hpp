@@ -17,9 +17,66 @@ enum class WebSocketFrameType : uint8_t {
     Close
 };
 
+/// <summary>Describes the lifecycle state of a server-side WebSocket endpoint.</summary>
+enum class WebSocketEndpointState : uint8_t {
+    Detached = 0,
+    Attached,
+    Binding,
+    Bound,
+    Unbinding
+};
+
+/// <summary>Describes the lifecycle state of a WebSocket client.</summary>
+enum class WebSocketClientState : uint8_t {
+    Detached = 0,
+    Attached,
+    Connecting,
+    Connected,
+    Disconnecting,
+    Disconnected
+};
+
+/// <summary>Identifies a diagnostic activity emitted by a WebSocket platform implementation.</summary>
+enum class WebSocketActivityKind : uint8_t {
+    BindRequested = 0,
+    Bound,
+    Unbound,
+    UpgradeRequested,
+    ConnectionCreated,
+    FrameHeaderReceived,
+    FramePayloadReceived,
+    FragmentStarted,
+    FragmentCompleted,
+    PingReceived,
+    PongReceived,
+    PeerCloseReceived,
+    CloseRequested,
+    SendQueued,
+    SendFailed,
+    ReceiveFailed,
+    SessionClosed,
+    ConnectRequested,
+    NativeConnected,
+    NativeDisconnected,
+    NativeClosed,
+    NativeError,
+    ProtocolError
+};
+
 struct WebSocketCloseReason final {
     uint16_t Code = 1000;
     std::string_view Reason;
+};
+
+/// <summary>Portable metadata describing an implementation-level WebSocket activity.</summary>
+struct WebSocketActivity final {
+    WebSocketActivityKind Kind = WebSocketActivityKind::ProtocolError;
+    WebSocketConnectionId ConnectionId = 0;
+    WebSocketFrameType FrameType = WebSocketFrameType::Binary;
+    std::size_t PayloadBytes = 0;
+    WebResult Result = WebResult::Success();
+    uint16_t CloseCode = 0;
+    std::string_view Detail;
 };
 
 struct WebSocketEndpointConfiguration final {
@@ -91,6 +148,8 @@ public:
     virtual void OnPlatformWebSocketBinary(IWebSocketConnection&, const uint8_t*, std::size_t) = 0;
     virtual void OnPlatformWebSocketText(IWebSocketConnection&, std::string_view) = 0;
     virtual void OnPlatformWebSocketDisconnected(WebSocketConnectionId, const WebSocketCloseReason&) = 0;
+    /// <summary>Receives implementation-level WebSocket diagnostics that are safe to expose portably.</summary>
+    virtual void OnPlatformWebSocketActivity(const WebSocketActivity&) {}
 };
 
 class IWebSocketEndpointPlatform {
@@ -113,6 +172,8 @@ public:
     virtual void OnPlatformWebSocketClientBinary(IWebSocketConnection&, const uint8_t*, std::size_t) = 0;
     virtual void OnPlatformWebSocketClientText(IWebSocketConnection&, std::string_view) = 0;
     virtual void OnPlatformWebSocketClientDisconnected(const WebSocketCloseReason&) = 0;
+    /// <summary>Receives implementation-level WebSocket client diagnostics that are safe to expose portably.</summary>
+    virtual void OnPlatformWebSocketClientActivity(const WebSocketActivity&) {}
 };
 
 class IWebSocketClientPlatform {
