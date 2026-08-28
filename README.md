@@ -29,13 +29,15 @@ The current ESPressio-ESP32 working branch provides optional concrete implementa
 - HTTP server/request/response translation using ESP-IDF `esp_http_server`;
 - bounded DNS parsing/serialization over the native UDP primitive while wildcard/captive-portal policy remains Web-owned;
 - server-side WebSocket endpoints backed by `esp_http_server`, including application-selected path/subprotocol binding, fragmented-message reassembly, ping/pong, close handling and durable asynchronous send ownership;
-- WebSocket client support using the `esp_websocket_client` component bundled by the pinned Arduino-ESP32 2.0.17 / ESP-IDF 4.4 framework, including authenticated CA/global-trust TLS, optional mTLS client identity, bounded application handshake headers, reconnect/ping/pong/TCP-keepalive policy mapping, and bounded inbound frame reassembly.
+- WebSocket client support using the `esp_websocket_client` component bundled by the pinned Arduino-ESP32 2.0.17 / ESP-IDF 4.4 framework, including authenticated CA/global-trust TLS, optional mTLS client identity, bounded application handshake headers, reconnect/ping/pong/TCP-keepalive policy mapping, and bounded reassembly when one native frame is split across multiple DATA callbacks.
 
 ESPressio-Web is not a mandatory dependency of ESPressio-ESP32. The combined provider validation lane lives in this repository so the general ESP32 package remains usable without Web.
 
 The ESP32 WebSocket client remains capability-driven and adds no external managed-component dependency to core ESPressio-ESP32. Arduino-ESP32 2.0.17 already supplies the compatible IDF-4.4 client header and static library. Newer managed `esp_websocket_client` releases target ESP-IDF 5+ and are therefore a future/newer-toolchain compatibility path rather than a dependency of the pinned lane.
 
 The pinned IDF 4.4 provider rejects portable policy values it cannot faithfully express instead of silently discarding them. In particular, custom network timeout/reconnect-delay values and reconnect-after-clean-close are unsupported on that native client; ping/pong values must be representable in whole seconds. `PlatformTrust` is accepted only when an authenticated global CA store has actually been installed; otherwise the provider returns `Unsupported` rather than using IDF's unauthenticated TLS default.
+
+IDF 4.4's public WebSocket-client event API does not expose the RFC6455 FIN bit. Consequently this pinned client backend supports **non-fragmented inbound WebSocket messages**. It can reassemble one frame split by the native receive buffer across DATA callbacks, but it cannot faithfully reconstruct a message fragmented across multiple RFC6455 frames; continuation frames are not delivered. FIN-aware fragmented-message support belongs to the newer ESP-IDF 5+ compatibility path.
 
 ## Examples
 
