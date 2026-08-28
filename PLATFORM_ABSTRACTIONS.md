@@ -40,13 +40,26 @@ Inbound frame payloads supplied to Web observers are borrowed for the duration o
 
 Outbound `IWebSocketConnection` sends may be invoked outside the native HTTP request task. Concrete implementations must therefore preserve payload lifetime until asynchronous transmission completes and must not assume that a caller-owned buffer remains valid after `SendBinary` or `SendText` returns. A copy into provider-owned storage is valid and necessary when the native asynchronous API does not retain/copy the caller payload itself. Disconnect notification must also cover peer/network/session teardown rather than relying only on an explicit WebSocket close frame.
 
-## WebSocket client security
+## WebSocket client transport security and policy
 
-`WebSocketClientConfiguration::Secure` is not sufficient by itself to define trustworthy `wss` semantics. A platform provider must not interpret `Secure = true` as permission to establish TLS with server authentication disabled merely because its native client permits that mode.
+`WebSocketClientConfiguration` separates transport selection, TLS trust/identity, structured handshake headers and connection policy. A provider must never interpret `WebTransportMode::Tls` as permission to establish TLS with server authentication disabled merely because its native client permits that mode.
 
-Portable server-trust policy, optional client credentials, handshake headers, reconnect/timeout and keepalive policy are tracked by Web issue #23. Until that contract is complete, concrete WebSocket-client implementations that cannot guarantee authenticated secure transport must reject underspecified secure configurations rather than silently weakening them.
+`WebTlsConfiguration` supports two server-trust modes:
 
-TLS certificate/key storage and cryptographic ownership do not automatically belong to ESPressio-Web. Existing ESPressio-Security transport protection concerns application-payload security and must not be repurposed as a TLS trust-store abstraction unless a future Security API explicitly defines that responsibility. Web should reference neutral credential/trust abstractions rather than native mbedTLS/ESP-IDF handles.
+- `PlatformTrust`: the concrete platform may use an architecture-owned trust source only when it actually authenticates the server. If no authenticated trust source is installed/configured, the provider must return `Unsupported` or another explicit failure; it must not fall back to certificate verification being disabled.
+- `CertificateAuthority`: the caller supplies CA/certificate material through `WebCredentialView`. The concrete provider maps that material into its native trust facility while preserving any lifetime required by the native stack.
+
+Optional client certificate and private-key views form one client identity and must be supplied together. Credential views are borrowed by the portable `Connect()` call. A concrete provider must copy/retain credential bytes when its native implementation retains pointers beyond initialization. Certificate/key storage and cryptographic ownership do not automatically belong to ESPressio-Web; the Web domain models transport trust/identity without exposing native mbedTLS/ESP-IDF handles.
+
+Application handshake headers are exposed through `IWebClientHeaderSource`. They are validated before the platform receives them, are bounded by `MaximumHandshakeHeaderBytes` and a fixed maximum header count, and may not contain CR/LF injection. Protocol-owned headers (`Host`, `Connection`, `Upgrade`, `Sec-WebSocket-Key`, `Sec-WebSocket-Version`, `Sec-WebSocket-Protocol`) are reserved and cannot be overridden through this surface. Application headers such as `Authorization` remain valid.
+
+`WebSocketClientConnectionPolicy` models portable connection behavior including network timeout, automatic reconnect, reconnect delay, reconnect-after-clean-close, ping/pong timing and optional TCP keepalive. Concrete providers must apply values they can faithfully represent and return `Unsupported` for requested semantics they cannot represent; silently discarding a policy value is not permitted.
+
+A durable client-side `IWebSocketConnection` may span native reconnect cycles. Receive callbacks follow the same synchronous borrowed-payload rule as server WebSockets. Providers may deliver a native complete frame directly without another payload copy, while split native frame events may be assembled in provider-owned bounded storage. If a native API does not expose enough framing information to reconstruct RFC6455 multi-frame fragmentation faithfully, it must fail/drop that unsupported form rather than combine frames incorrectly.
+
+A concrete native stack may forbid stop/clean-close calls from its own event callback task. In that case the provider must return an explicit state/unsupported result from such a call rather than deadlock or perform unsafe teardown.
+
+Current ESPressio-Security `ITransportSecurityCarrier` protects application payloads and is not a TLS trust-store/client-certificate abstraction. Do not conflate those layers unless a future Security API explicitly defines that responsibility.
 
 ## DNS ownership
 
