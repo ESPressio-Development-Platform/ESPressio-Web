@@ -14,6 +14,7 @@
 
 #include <ESPressio_CommandEnvelope.hpp>
 #include <ESPressio_CommandEvents.hpp>
+#include <ESPressio_Memory.hpp>
 
 #include "ESPressio_Router.hpp"
 
@@ -24,6 +25,12 @@ struct HttpCommandIngressConfiguration final {
 };
 
 class HttpCommandIngress final : public IHttpRouteHandler {
+private:
+    using CommandBuffer = System::Memory::Vector<
+        uint8_t,
+        System::Memory::MemoryPolicy::ExternalPreferred
+    >;
+
 public:
     WebResult Configure(const HttpCommandIngressConfiguration& configuration) {
         if (configuration.ReadChunkBytes == 0) {
@@ -59,19 +66,23 @@ public:
             );
         }
 
-        Command::CommandRequestEnvelope envelope;
-        envelope.RequestId = NextRequestId();
-        envelope.ResponseExpectation = Command::CommandResponseExpectation::Acceptance;
-        envelope.ResponseMode = Command::CommandResponseMode::Single;
-
+        CommandBuffer bytes;
         const auto bodyResult = ReadCommandBody(
             context.Request(),
             declaredLength,
             configuration.ReadChunkBytes,
-            envelope
+            bytes
         );
         if (!bodyResult) return HttpHandlerResult::Handled(bodyResult);
-        if (envelope.RawLength == 0) {
+        if (bytes.empty()) return HttpHandlerResult::Failure(WebError::ProtocolError);
+
+        Command::CommandRequestEnvelope envelope;
+        envelope.RequestId = NextRequestId();
+        envelope.ResponseExpectation = Command::CommandResponseExpectation::Acceptance;
+        envelope.ResponseMode = Command::CommandResponseMode::Single;
+        if (!envelope.SetRaw(
+                reinterpret_cast<const char*>(bytes.data()),
+                bytes.size())) {
             return HttpHandlerResult::Failure(WebError::ProtocolError);
         }
 
@@ -93,31 +104,27 @@ private:
         HttpRequest& request,
         std::optional<std::size_t> declaredLength,
         std::size_t readChunkBytes,
-        Command::CommandRequestEnvelope& envelope
+        CommandBuffer& bytes
     ) {
         constexpr std::size_t MaximumBytes = ESPRESSIO_COMMAND_MAX_RAW_LENGTH - 1;
-        auto* destination = reinterpret_cast<uint8_t*>(envelope.Raw.data());
 
         if (declaredLength.has_value()) {
-            const std::size_t expected = *declaredLength;
+            bytes.resize(*declaredLength);
             std::size_t offset = 0;
-            while (offset < expected) {
+            while (offset < bytes.size()) {
                 const auto read = request.ReadBody(
-                    destination + offset,
-                    expected - offset
+                    bytes.data() + offset,
+                    bytes.size() - offset
                 );
                 if (!read) return read.Result;
-                if (read.BytesRead > expected - offset) {
+                if (read.BytesRead > bytes.size() - offset) {
                     return WebResult::Failure(WebError::ProtocolError);
                 }
                 offset += read.BytesRead;
                 if (read.EndOfBody) {
-                    if (offset != expected) {
-                        return WebResult::Failure(WebError::ProtocolError);
-                    }
-                    envelope.Raw[offset] = '\0';
-                    envelope.RawLength = static_cast<uint16_t>(offset);
-                    return WebResult::Success();
+                    return offset == bytes.size()
+                        ? WebResult::Success()
+                        : WebResult::Failure(WebError::ProtocolError);
                 }
                 if (read.BytesRead == 0) {
                     return WebResult::Failure(WebError::ProtocolError);
@@ -126,29 +133,32 @@ private:
             return WebResult::Failure(WebError::ProtocolError);
         }
 
-        std::size_t offset = 0;
+        bytes.reserve(std::min(readChunkBytes, MaximumBytes));
+
         for (;;) {
-            if (offset >= MaximumBytes) {
+            if (bytes.size() >= MaximumBytes) {
                 return WebResult::Failure(WebError::RequestTooLarge);
             }
 
+            const auto oldSize = bytes.size();
             const auto capacity = std::min(
                 readChunkBytes,
-                MaximumBytes - offset
+                MaximumBytes - oldSize
             );
-            const auto read = request.ReadBody(destination + offset, capacity);
-            if (!read) return read.Result;
+            bytes.resize(oldSize + capacity);
+
+            const auto read = request.ReadBody(bytes.data() + oldSize, capacity);
+            if (!read) {
+                bytes.resize(oldSize);
+                return read.Result;
+            }
             if (read.BytesRead > capacity) {
+                bytes.resize(oldSize);
                 return WebResult::Failure(WebError::ProtocolError);
             }
 
-            offset += read.BytesRead;
-            if (read.EndOfBody) {
-                if (offset == 0) return WebResult::Failure(WebError::ProtocolError);
-                envelope.Raw[offset] = '\0';
-                envelope.RawLength = static_cast<uint16_t>(offset);
-                return WebResult::Success();
-            }
+            bytes.resize(oldSize + read.BytesRead);
+            if (read.EndOfBody) return WebResult::Success();
             if (read.BytesRead == 0) {
                 return WebResult::Failure(WebError::ProtocolError);
             }
