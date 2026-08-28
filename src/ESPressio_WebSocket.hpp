@@ -45,6 +45,7 @@ struct WebSocketClientConnectionPolicy final {
     uint32_t ReconnectDelayMilliseconds = 10000;
     uint32_t PingIntervalMilliseconds = 10000;
     uint32_t PongTimeoutMilliseconds = 10000;
+    std::size_t MaximumHandshakeHeaderBytes = 4096;
 };
 
 struct WebSocketClientConfiguration final {
