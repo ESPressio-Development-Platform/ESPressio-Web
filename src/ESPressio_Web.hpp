@@ -9,6 +9,8 @@
 #include "ESPressio_HttpServer.hpp"
 #include "ESPressio_Router.hpp"
 #include "ESPressio_Middleware.hpp"
+#include "ESPressio_Resources.hpp"
+#include "ESPressio_HttpApplication.hpp"
 #include "ESPressio_WebSocket.hpp"
 #include "ESPressio_WebSocketEndpoint.hpp"
 #include "ESPressio_WebSocketClient.hpp"
