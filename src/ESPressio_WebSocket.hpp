@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string_view>
 
+#include "ESPressio_WebTransportSecurity.hpp"
 #include "ESPressio_WebTypes.hpp"
 
 namespace ESPressio::Web {
@@ -26,12 +27,35 @@ struct WebSocketEndpointConfiguration final {
     std::string_view Protocol;
 };
 
+struct WebClientHeader final {
+    std::string_view Name;
+    std::string_view Value;
+};
+
+class IWebClientHeaderSource {
+public:
+    virtual ~IWebClientHeaderSource() = default;
+    virtual std::size_t Count() const noexcept = 0;
+    virtual bool Header(std::size_t index, WebClientHeader& header) const noexcept = 0;
+};
+
+struct WebSocketClientConnectionPolicy final {
+    uint32_t NetworkTimeoutMilliseconds = 10000;
+    bool AutomaticReconnect = false;
+    uint32_t ReconnectDelayMilliseconds = 10000;
+    uint32_t PingIntervalMilliseconds = 10000;
+    uint32_t PongTimeoutMilliseconds = 10000;
+};
+
 struct WebSocketClientConfiguration final {
     std::string_view Host;
     uint16_t Port = 0;
     std::string_view Path = "/";
     std::string_view Protocol;
-    bool Secure = false;
+    WebTransportMode Transport = WebTransportMode::Plain;
+    WebTlsConfiguration Tls;
+    const IWebClientHeaderSource* Headers = nullptr;
+    WebSocketClientConnectionPolicy Policy;
 };
 
 class IWebSocketConnection {
