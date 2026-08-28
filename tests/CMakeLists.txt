@@ -54,6 +54,7 @@ target_include_directories(espressio_web_event_integration_tests PRIVATE
 )
 
 target_include_directories(espressio_web_command_integration_tests PRIVATE
+    ../../ESPressio-Timing/tests/stubs
     ../../ESPressio-Command/src
     ../../ESPressio-Event/src
     ../../ESPressio-Threads/src
