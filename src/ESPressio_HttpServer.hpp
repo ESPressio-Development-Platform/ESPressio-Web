@@ -20,10 +20,39 @@ enum class HttpServerState : uint8_t {
     Faulted
 };
 
+enum class HttpHandlerDisposition : uint8_t {
+    NotHandled = 0,
+    Handled
+};
+
+struct HttpHandlerResult final {
+    WebResult Result;
+    HttpHandlerDisposition Disposition = HttpHandlerDisposition::NotHandled;
+
+    constexpr explicit operator bool() const noexcept {
+        return static_cast<bool>(Result);
+    }
+
+    static constexpr HttpHandlerResult NotHandled() noexcept {
+        return {WebResult::Success(), HttpHandlerDisposition::NotHandled};
+    }
+
+    static constexpr HttpHandlerResult Handled(WebResult result = WebResult::Success()) noexcept {
+        return {result, HttpHandlerDisposition::Handled};
+    }
+
+    static constexpr HttpHandlerResult Failure(WebError error, int32_t platformCode = 0) noexcept {
+        return {
+            WebResult::Failure(error, platformCode),
+            HttpHandlerDisposition::Handled
+        };
+    }
+};
+
 class IHttpRequestHandler {
 public:
     virtual ~IHttpRequestHandler() = default;
-    virtual WebResult Handle(WebRequestContext& context) = 0;
+    virtual HttpHandlerResult Handle(WebRequestContext& context) = 0;
 };
 
 class IHttpRequestDispatcher {
@@ -236,7 +265,20 @@ public:
         }
 
         WebRequestContext context(requestPlatform, responsePlatform);
-        return handler->Handle(context);
+        const auto handling = handler->Handle(context);
+        if (!handling.Result) return handling.Result;
+
+        if (handling.Disposition == HttpHandlerDisposition::NotHandled) {
+            if (context.Response().IsCommitted()) {
+                return WebResult::Failure(WebError::InvalidState);
+            }
+            return WebResult::Failure(WebError::NotFound);
+        }
+
+        if (!context.Response().IsCompleted()) {
+            return WebResult::Failure(WebError::InvalidState);
+        }
+        return WebResult::Success();
     }
 
 private:
