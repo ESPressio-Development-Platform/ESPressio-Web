@@ -13,24 +13,12 @@ set(ESPRESSIO_WEB_COMMON_INCLUDES
 )
 
 add_executable(espressio_web_core_include test_core_include.cpp)
-target_include_directories(espressio_web_core_include PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
-target_link_libraries(espressio_web_core_include PRIVATE Threads::Threads)
-
 add_executable(espressio_web_websocket_tests test_websocket.cpp)
-target_include_directories(espressio_web_websocket_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
-target_link_libraries(espressio_web_websocket_tests PRIVATE Threads::Threads)
-
 add_executable(espressio_web_http_tests test_http.cpp)
-target_include_directories(espressio_web_http_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
-target_link_libraries(espressio_web_http_tests PRIVATE Threads::Threads)
-
 add_executable(espressio_web_router_tests test_router.cpp)
-target_include_directories(espressio_web_router_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
-target_link_libraries(espressio_web_router_tests PRIVATE Threads::Threads)
-
 add_executable(espressio_web_middleware_tests test_middleware.cpp)
-target_include_directories(espressio_web_middleware_tests PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
-target_link_libraries(espressio_web_middleware_tests PRIVATE Threads::Threads)
+add_executable(espressio_web_resource_tests test_resources.cpp)
+add_executable(espressio_web_persistence_resource_tests test_persistence_resources.cpp)
 
 set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
@@ -38,6 +26,17 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_http_tests
     espressio_web_router_tests
     espressio_web_middleware_tests
+    espressio_web_resource_tests
+    espressio_web_persistence_resource_tests
+)
+
+foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
+    target_include_directories(${target} PRIVATE ${ESPRESSIO_WEB_COMMON_INCLUDES})
+    target_link_libraries(${target} PRIVATE Threads::Threads)
+endforeach()
+
+target_include_directories(espressio_web_persistence_resource_tests PRIVATE
+    ../../ESPressio-Persistence/src
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -51,8 +50,6 @@ elseif(MSVC)
 endif()
 
 enable_testing()
-add_test(NAME espressio_web_core_include COMMAND espressio_web_core_include)
-add_test(NAME espressio_web_websocket_tests COMMAND espressio_web_websocket_tests)
-add_test(NAME espressio_web_http_tests COMMAND espressio_web_http_tests)
-add_test(NAME espressio_web_router_tests COMMAND espressio_web_router_tests)
-add_test(NAME espressio_web_middleware_tests COMMAND espressio_web_middleware_tests)
+foreach(target ${ESPRESSIO_WEB_TEST_TARGETS})
+    add_test(NAME ${target} COMMAND ${target})
+endforeach()
