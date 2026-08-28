@@ -17,6 +17,7 @@ public:
     std::string_view Path() const noexcept override { return "/"; }
     std::string_view QueryString() const noexcept override { return {}; }
     std::optional<std::size_t> ContentLength() const noexcept override { return std::nullopt; }
+    bool HasHeader(std::string_view) const noexcept override { return false; }
     std::size_t HeaderValueLength(std::string_view) const noexcept override { return 0; }
     WebResult ReadHeader(std::string_view, char*, std::size_t, std::size_t& written) const override {
         written = 0;
