@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <mutex>
 #include <string_view>
 
 #include <ESPressio_IFileStorage.hpp>
@@ -23,11 +22,9 @@ public:
 
     WebResult Stat(std::string_view path, WebResourceMetadata& metadata) const override {
         metadata = {};
-        std::lock_guard<std::mutex> lock(_pathMutex);
-        AssignPath(path);
-
+        const auto nativePath = MakePath(path);
         Persistence::StorageEntry entry;
-        const auto status = _storage.Stat(_nativePath.c_str(), entry);
+        const auto status = _storage.Stat(nativePath.c_str(), entry);
         if (status != Persistence::StorageStatus::Success) {
             return Translate(status);
         }
@@ -46,12 +43,10 @@ public:
             return {WebResult::Failure(WebError::InvalidConfiguration), 0};
         }
 
-        std::lock_guard<std::mutex> lock(_pathMutex);
-        AssignPath(path);
-
+        const auto nativePath = MakePath(path);
         std::size_t bytesRead = 0;
         const auto status = _storage.Read(
-            _nativePath.c_str(),
+            nativePath.c_str(),
             offset,
             destination,
             capacity,
@@ -65,8 +60,8 @@ private:
         System::Memory::MemoryPolicy::ExternalPreferred
     >;
 
-    void AssignPath(std::string_view path) const {
-        _nativePath.assign(path.begin(), path.end());
+    static PathString MakePath(std::string_view path) {
+        return PathString(path.begin(), path.end());
     }
 
     static WebResult Translate(Persistence::StorageStatus status) noexcept {
@@ -98,8 +93,6 @@ private:
     }
 
     Persistence::IFileStorage& _storage;
-    mutable std::mutex _pathMutex;
-    mutable PathString _nativePath;
 };
 
 } // namespace ESPressio::Web
