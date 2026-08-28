@@ -8,11 +8,11 @@ This is the authoritative continuation record for the current ESPressio-Web tran
 2. Historical Web refs `feature/10-web-foundation`, `feature/11-websocket-migration`, `feature/12-web-core`, and `tmp-ignore` are redundant. They contain no unique work and must receive no further commits.
 3. ESPressio-ESP32 work for this tranche stays on its existing `feature/1-system-memory-provider` branch.
 4. Domain libraries own vocabulary, abstractions, lifecycle/state and behavior. ESPressio-ESP32 owns ESP32/Arduino/ESP-IDF concrete implementation and native type/error translation.
-5. Application-visible routes are always application-owned. No Web integration or platform provider may impose a URL.
+5. Application-visible HTTP/WebSocket routes are always application-owned. No integration or platform provider may impose a URL.
 6. User callbacks/Observers must never execute while an ESPressio-Web internal mutex is held.
-7. Prefer borrowed views, bounded streaming, external-preferred memory, and mutation-time snapshots rather than per-request copying.
-8. Optional integrations remain optional. ESPressio-ESP32 must not acquire a mandatory dependency on ESPressio-Web merely because it contains a Web provider.
-9. Backwards compatibility is not a tranche goal. Update consumers to the current APIs rather than adding compatibility shims.
+7. Prefer borrowed views, bounded streaming, external-preferred memory, mutation-time snapshots and moves rather than per-request copying.
+8. Optional integrations remain optional. ESPressio-ESP32 must not acquire a mandatory dependency on ESPressio-Web merely because it contains Web providers.
+9. Backwards compatibility is not a tranche goal. Update consumers to current APIs rather than adding compatibility shims.
 10. Do not change release version numbers during this development tranche.
 
 ## Current Working Branches used by Web CI
@@ -28,129 +28,189 @@ This is the authoritative continuation record for the current ESPressio-Web tran
 - ESPressio-Threads: `optimisation/69-resource-footprint`
 - ESPressio-Task: `feature/1-task-execution`
 - ESPressio-Timing: `feature/29-platform-clock-abstractions`
-- ESPressio-Units: `main` (read-only unless a new working branch is created)
+- ESPressio-Units: `main`
 - ESPressio-Serializable: `optimisation/25-psram-buffers`
 - ESPressio-WiFi: `feature/20-wifi-off-mode`
 - ESPressio-Sockets: `feature/state-transport-major-release`
 
-## Architecture already settled
+## Active issues
 
-- Platform-neutral Web API; no ESP-IDF/Arduino/lwIP types in ESPressio-Web public contracts.
-- Borrowed synchronous HTTP request contexts; request/response objects cannot be retained for deferred completion.
-- Lazy header access; path/query borrowed as views; request and response bodies stream through bounded APIs.
-- Long-running operations acknowledge synchronously (normally `202 Accepted`) and continue through owner-library async facilities.
-- Runtime route mutation is supported and thread-safe; exact routes outrank named-parameter routes.
-- Middleware is ordered, short-circuitable and one-shot; each continuation may be invoked only once.
-- Static resources are Web-domain semantics; storage remains Persistence ownership through an optional adapter.
-- DNS request/response/lifecycle is Web-owned. Wildcard DNS is Web behavior, not a platform capability.
-- HTTP representation is neutral. Providers may inspect the full request (`Content-Type`, `Accept`, etc.) before selecting a representation.
-- WebSocket is Web ownership. ESPressio-Sockets no longer owns WebSocket transport APIs.
-- Server-side WebSocket paths are explicitly application-owned through `WebSocketEndpointConfiguration`; a platform package may coordinate its own HTTP/WebSocket concrete implementations internally but may not expose native handles through Web.
-- SSE, regex routing, multipart streaming, compression, ranges, conditional/cache policy and HTTP/2 remain deferred issues.
+### ESPressio-Web
 
-## Active Issues
+- #10 repository foundation
+- #11 WebSocket ownership migration
+- #12 umbrella tranche
+- #13 Sockets WebSocket consumer audit
+- #14 application-owned routes / MIME-aware composition
+- #15 single Working Branch consolidation
+- #16 HTTP vocabulary/request/response/server lifecycle
+- #17 runtime routing and middleware
+- #18 static resources and configurable errors
+- #19 DNS abstractions/lifecycle
+- #20 State/Command/Event HTTP adapters
+- #21 request-aware service/provider composition
+- #22 application-owned WebSocket endpoint binding / upgrade lifecycle
+- #23 WebSocket client transport-security and connection-policy configuration
 
-- Web #10 repository foundation
-- Web #11 WebSocket ownership migration
-- Web #12 umbrella tranche
-- Web #13 Sockets WebSocket consumer audit
-- Web #14 application-owned routes / MIME-aware composition
-- Web #15 single Working Branch consolidation
-- Web #16 HTTP vocabulary/request/response/server lifecycle
-- Web #17 runtime routing and middleware
-- Web #18 static resources and configurable errors
-- Web #19 DNS abstractions/lifecycle
-- Web #20 State/Command/Event HTTP adapters
-- Web #21 request-aware service/provider composition
-- Web #22 application-owned WebSocket endpoint binding / upgrade lifecycle
-- ESP32 #6 ESP32 HTTP/WebSocket/DNS concrete implementations
+### ESPressio-ESP32
 
-## Completed Web core work on `work/web-core-tranche`
+- #6 ESP32 HTTP/WebSocket/DNS concrete providers
+- #7 optional maintained Espressif WebSocket client provider
 
-### WebSocket ownership (#11/#13)
+## Architecture settled in this tranche
 
-Web owns endpoint/client abstractions, Event-over-WebSocket and WebSocket clock synchronization. Sockets was cleaned of WebSocket ownership while retaining reusable transport-neutral clock synchronization protocol machinery. Obsolete Links2004 WebSocket Event transports were removed from ESPressio-ESP32.
+- ESPressio-Web public contracts are platform-neutral; ESP-IDF/Arduino/lwIP/native handles do not cross the boundary.
+- HTTP request/response contexts are borrowed and synchronous. Deferred work uses owner-library async primitives and normally acknowledges with `202 Accepted`.
+- Paths/query strings are borrowed where possible; headers are lazy caller-buffer lookups; bodies are bounded streaming APIs.
+- Known-length responses may use fixed framing without whole-body buffering; unknown-length responses remain streaming/chunked provider concerns.
+- Runtime route mutation is supported and synchronized. Exact routes outrank named-parameter routes. Selected entries retain stable lifetime while user callbacks execute outside locks.
+- Middleware and HTTP service providers use mutation-time immutable snapshots rather than copying their lists per request.
+- Static-resource semantics are Web-owned while filesystem/storage access remains Persistence-owned.
+- DNS vocabulary/lifecycle/policy is Web-owned. ESP32 supplies only DNS/UDP mechanics; wildcard captive-portal policy remains `WildcardDnsHandler` behavior.
+- WebSocket protocol ownership is ESPressio-Web. ESPressio-Sockets no longer owns WebSocket transports.
+- Server WebSocket endpoint path/subprotocol binding is application-owned. Native HTTP/WebSocket provider coordination may stay private inside an architecture package.
+- Durable WebSocket connections outlive the HTTP upgrade request; inbound callback payloads are synchronous borrowed views over provider-owned buffers; async outbound payloads must remain provider-owned until native completion.
+- Leaf handler/responder configuration is setup-time unless a type explicitly documents runtime mutation. Router/middleware/service mutation are the synchronized runtime composition surfaces.
+- `Secure=true` must never silently map to unauthenticated TLS. Full portable WebSocket-client trust/credential/policy semantics are deliberately blocked on Web #23.
+- SSE, regex routing, multipart streaming, compression, ranges, conditional/cache policy and HTTP/2 remain deferred work.
+
+## Completed portable Web core
 
 ### HTTP foundation (#16)
 
-Implemented `ESPressio_Http.hpp` and `ESPressio_HttpServer.hpp` with standard method/status vocabulary, borrowed path/query request views, lazy caller-buffer header reads, streamed request bodies, response state, lifecycle/capability validation and explicit handled/not-handled semantics. Observable lifecycle notifications occur outside locks.
+`ESPressio_Http.hpp` / `ESPressio_HttpServer.hpp` provide standard method/status/header vocabulary, borrowed request metadata, lazy headers, streamed bodies, response state/framing contracts, lifecycle/capability validation and explicit handled/not-handled semantics. Observable lifecycle notifications execute outside server locks.
 
 ### Router and middleware (#17)
 
-Implemented thread-safe exact/named routing with fixed-capacity borrowed parameter views, route handles/removal and deterministic precedence. Route-table locks are released before application handlers execute. Middleware uses immutable mutation-time snapshots and one-shot continuations.
+Router uses external-preferred stable route entries, fixed-capacity borrowed route parameters, handles/removal and deterministic precedence. A shared lock is held only while selecting an entry; the handler executes after release.
+
+Middleware uses an immutable `Chain` snapshot rebuilt on mutation. Requests retain one shared snapshot; middleware/terminal callbacks execute without the mutation mutex. Continuations are one-shot and host-tested against double invocation and self-removal.
 
 ### Resources/errors (#18)
 
-Implemented generic `IWebResourceProvider`, bounded streaming responses, MIME resolution, traversal rejection, GET/HEAD static resource handling and Web-owned application/error composition. Optional `ESPressio_WebPersistence.hpp` adapts Persistence without making it a core Web dependency.
+Generic `IWebResourceProvider`, MIME resolution, traversal rejection and GET/HEAD static-resource serving are implemented. Resource bodies stream through one reusable external-preferred chunk buffer. Optional `ESPressio_WebPersistence.hpp` adapts Persistence without making it a core dependency.
+
+Custom leaf resource/error responder configuration is setup-time. Runtime request paths do not add locks/copies around immutable mappings.
 
 ### DNS (#19)
 
-Implemented platform-neutral DNS question/address/response vocabulary, synchronous request context, lifecycle facade and Web-owned `WildcardDnsHandler`. Unhandled questions produce NXDOMAIN.
+Platform-neutral DNS question/address/response vocabulary, lifecycle facade and `WildcardDnsHandler` are implemented. Unhandled requests become NXDOMAIN. Wildcard address/TTL are construction-time immutable state.
 
-### Request-aware composition (#21/#14)
+### Request-aware service/provider composition (#21/#14)
 
-Implemented a stable-snapshot provider registry/service surface. Providers inspect the live `HttpRequest` and choose themselves using request metadata without the HTTP core knowing JSON, CBOR, Serializable or other representations.
+`HttpService` uses a stable provider-set snapshot. Providers inspect the live request (`Content-Type`, `Accept`, etc.) without the core learning JSON/CBOR/Serializable representations. Provider selection/handling runs outside the mutation mutex.
 
 ### State / Command / Event adapters (#20)
 
-Implemented optional HTTP adapters without registering URLs. Event and Command ingress return `202 Accepted`; State GET/HEAD snapshots preserve State metadata and work with State introspection disabled. The live owner-library integration matrix, including successful Command -> Event queuing, is green.
+Optional adapters register no URLs themselves.
+
+- Event POST ingress delivers one bounded Event transport packet and returns `202 Accepted` after receiver handoff.
+- Command POST ingress builds the current Command envelope, queues `InboundCommandEvent` through the owner-library Event path and returns `202 Accepted`; it does not synchronously invoke CommandRegistry.
+- State GET/HEAD snapshots preserve State TypeId/Epoch/Revision metadata and use State-owned `StateCodec<TDefinition>`.
+
+Final memory pass changes:
+
+- Event declared-length bodies now read directly into their final external-preferred packet buffer; unknown-length bodies grow/read directly into the final buffer. The old chunk-to-packet staging copy is gone (`2df6fcbf...`, explicit include follow-up `ffea8db5...`).
+- Command ingress uses the same direct-read strategy and removes its staging copy (`79df5c4f...`, explicit include follow-up `50dbb237...`). Host and ESP32 integration runs for `50dbb237...` both succeeded (`33163816790`, `33163816789`).
+- State codec scratch storage moved from a `MaximumEncodedSize` request-stack array to an external-preferred buffer (`8661a5bc...`) with a defensive encoded-size check.
 
 ### WebSocket endpoint binding (#22)
 
-The original WebSocket endpoint abstraction did not expose a server-side application-owned upgrade path. This would have forced an ESP32 concrete provider either to hard-code a URI or bypass Web ownership. Issue #22 records and resolves that architectural gap.
+`WebSocketEndpointConfiguration` carries application-selected `Path` and optional `Protocol`; `IWebSocketEndpointPlatform` exposes Bind/Unbind/IsBound. Host tests validate binding lifecycle, application path/protocol propagation, observer behavior and broadcasts. Earlier binding contract run `33161878768` is green.
 
-`WebSocketEndpointConfiguration` now carries application-selected `Path` and optional `Protocol`. `IWebSocketEndpointPlatform` exposes `Bind`, `Unbind` and `IsBound`; `WebSocketEndpoint` validates absolute paths and owns the portable bind lifecycle. Host fakes/tests verify application path/protocol propagation, bind state, unbind and existing observer/broadcast behavior. Final host WebSocket binding test run `33161878768` succeeded.
+`PLATFORM_ABSTRACTIONS.md` defines durable connection lifetime, synchronous borrowed inbound payloads, async outbound ownership, pre-start binding requirements and safe unbind behavior for native stacks with fixed handler precedence.
 
-`PLATFORM_ABSTRACTIONS.md` now documents durable WebSocket connection lifetime, payload ownership for asynchronous sends, disconnect semantics and pre-start binding requirements for target stacks whose URI precedence is fixed at server start.
+## ESP32 HTTP provider (#16 / ESP32 #6)
 
-## ESP32 HTTP provider status (#16 / ESP32 #6)
+Implementation is `src/ESPressio_HttpServerPlatform.hpp` on ESP32 `feature/1-system-memory-provider`.
 
-Implementation is on ESPressio-ESP32 `feature/1-system-memory-provider` in `src/ESPressio_HttpServerPlatform.hpp`.
+- Uses ESP-IDF `esp_http_server`; Web routing remains portable.
+- Request URI/query are borrowed; headers are lazy; bodies use `httpd_req_recv`.
+- Pinned-IDF compatibility fixes are in `be9848f6ac4b84172b17d3f95ea9345b66ebfe87`.
+- Known-length responses construct explicit HTTP/1.1 framing and stream through `httpd_send()`; unknown-length responses use native chunked send. HEAD counts/validates application body bytes but suppresses them on the wire (`0e4efb13d29b542f9c2e9c5fa042d90370e1b0d4`).
+- Framing headers (`Content-Length`, `Transfer-Encoding`, `Connection`) are provider-owned to prevent contradictory wire state.
+- HTTP native start/register/stop work is no longer executed while the provider mutex is held; `_starting` blocks concurrent lifecycle/binding mutation (`0e572b19824856ae57042894e61c2af330e2a605`).
 
-Concrete HTTP request/response/server translation uses ESP-IDF `esp_http_server`. Request URI/query are borrowed, headers are lazy, bodies use `httpd_req_recv`, and response metadata is adapter-owned until commit.
+## ESP32 DNS provider (#19 / ESP32 #6)
 
-Pinned Arduino-ESP32/IDF compatibility was corrected in `be9848f6ac4b84172b17d3f95ea9345b66ebfe87`: `httpd_req_t::method` conversion, absence of runtime `max_req_hdr_len`, absence of `HTTP_ANY`, and empty/non-empty header presence behavior.
+`src/ESPressio_DnsServerPlatform.hpp` uses Arduino-ESP32 `AsyncUDP` only as the UDP primitive. Arduino `DNSServer` is intentionally not used because its wildcard/policy behavior belongs to Web. Bounded DNS parse/serialize supports the required A/AAAA path. HTTP+DNS pinned integration run `33160458979` is green.
 
-Known-length streaming and HEAD semantics were hardened in `0e4efb13d29b542f9c2e9c5fa042d90370e1b0d4`. Unknown-length responses use IDF chunked transfer; known-length responses construct explicit HTTP/1.1 framing and stream through `httpd_send()` with `Content-Length`, avoiding contradictory chunked/content-length headers and avoiding full-body buffering. HEAD consumes/counts the application body path but suppresses wire body bytes. `Content-Length`, `Transfer-Encoding` and `Connection` are provider-owned framing headers. Private pinned-toolchain integration run `33161700071` succeeded.
+## ESP32 WebSocket server (#22 / ESP32 #6)
 
-ESPressio-Web remains optional for ESPressio-ESP32. Real combined validation is owned by Web workflow `.github/workflows/esp32-provider.yml`; public ESP32 package metadata does not mandate the Web repository.
+ESP-IDF 4.4 URI lookup is insertion ordered and an existing wildcard GET handler blocks later exact WebSocket registration. The HTTP provider therefore retains active WebSocket bindings and installs exact upgrade handlers before generic `/*` handlers (`fef4ce6e...`).
 
-## ESP32 DNS provider status (#19 / ESP32 #6)
+`ESP32WebSocketEndpointPlatform` (`6a927882...`, umbrella exposure `696dc278...`) provides:
 
-`src/ESPressio_DnsServerPlatform.hpp` implements the DNS primitive over Arduino-ESP32 `AsyncUDP`; Arduino `DNSServer` is intentionally not used because it owns domain matching/policy. The provider performs bounded DNS wire parsing/serialization and exposes one-question A/AAAA address response mechanics while Web's `WildcardDnsHandler` retains captive-portal policy ownership. Combined HTTP/DNS pinned-toolchain integration run `33160458979` succeeded.
-
-## ESP32 WebSocket server status (#22 / ESP32 #6)
-
-ESP-IDF 4.4 handler registration is insertion-ordered, and an already-registered wildcard GET handler prevents later exact WebSocket registration. The concrete HTTP provider therefore now owns an internal durable WebSocket binding registry and registers active exact WebSocket handlers **before** its generic `/*` HTTP handlers. ESP32 commit `fef4ce6e0e6f9db06777bd180ac69f26b67d3dba` adds that registry and session-close fan-out.
-
-`src/ESPressio_WebSocketEndpointPlatform.hpp` was added in ESP32 commit `6a927882c483a0a757b81389bdaa572a5a135f98`, and conditional umbrella exposure followed in `696dc2782a9e3b84a240314426097eb990dabe40`.
-
-The concrete endpoint currently provides:
-
-- durable per-socket `IWebSocketConnection` objects rather than retaining borrowed HTTP requests;
+- durable per-socket `IWebSocketConnection` objects;
 - application path and optional subprotocol binding;
-- exact-handler registration before generic HTTP routing;
 - text/binary receive and broadcast;
-- bounded fragmented-message reassembly using external-preferred buffers;
-- ping/pong and close control-frame handling;
-- close codes/reasons and `httpd_sess_trigger_close()` session teardown;
-- `httpd_config_t.close_fn` disconnect detection covering peer/network/server session termination;
-- owned outbound payload operations retained until IDF asynchronous-send completion, avoiding caller-buffer lifetime bugs and HTTP-task self-deadlock.
+- bounded fragmented-message reassembly in external-preferred memory;
+- ping/pong and close control handling;
+- `httpd_sess_trigger_close()` teardown and `close_fn` disconnect detection;
+- async outbound send operations owning payload bytes until IDF completion;
+- fresh binding-state rotation on unbind, so a retained stale native `user_ctx` can never be reactivated (`dcd9d75d...`);
+- receive-buffer moves for complete frames and first fragments, removing the common-case second allocation/copy; only continuation-fragment append remains (`da0555b7374ff79deaa9dd5581b8919b7cbf6e30`).
 
-Web compile smoke commit `c3e0a87d6c9323dc7e2972a4f569d20fdd8964f6` instantiated the endpoint conditionally and its provider integration run `33162454811` succeeded. A stronger smoke commit `253502ebec3e517ab0987163ced93a50eb0ee9e1` removes that conditional from the test so the pinned SDK must actually expose WebSocket server support; its provider run `33162559309` is still pending at this checkpoint.
+Validation checkpoints:
+
+- initial concrete WS provider: `33162454811` green;
+- forced pinned-SDK WebSocket support (no preprocessor skip): `33162559309` green;
+- hardened HTTP/DNS/WS start/bind/unbind/rebind paths: `33163078689` green.
+
+## WebSocket client decision (#23 / ESP32 #7)
+
+The pinned Arduino-ESP32 / ESP-IDF 4.4 stack does not provide the maintained client as a core facility. Espressif now distributes `esp_websocket_client` separately as a managed component. ESP32 #7 therefore keeps the client optional and explicitly forbids adding it to the core ESPressio-ESP32 `library.json` dependency set.
+
+The current portable `WebSocketClientConfiguration` is not yet sufficient for a trustworthy concrete implementation: it lacks server trust policy/material, client credentials, structured handshake headers and connection/reconnect/keepalive policy. Native `wss` must not be enabled in a mode that skips server authentication merely because `Secure=true` was supplied. Web #23 owns the portable contract correction before the ESP32 client is considered complete.
+
+Current ESPressio-Security `ITransportSecurityCarrier` protects application payloads and is not a TLS trust-store/client-certificate abstraction. Do not conflate those layers.
+
+## Examples and documentation
+
+Examples are split by audience as required:
+
+- `examples/Implementors/MinimalHttpPlatform/main.cpp` demonstrates a pedagogical native request/response/server implementation and the synchronous Web dispatcher boundary. It is now a host-CI executable under `-Wall -Wextra -Wpedantic -Werror`; run `33163484385` succeeded.
+- `examples/ESP32/HttpAndWebSocket/main.cpp` demonstrates application consumption of the concrete ESP32 HTTP/WebSocket providers with application-selected routes. The provider workflow compiles the actual example; run `33163268936` succeeded.
+
+README and `PLATFORM_ABSTRACTIONS.md` now document the two extension surfaces, provider ownership, response framing, WebSocket lifetime/move semantics, setup-time leaf configuration and the secure-client blocker.
+
+## Memory/threading audit status
+
+Audited portable components:
+
+- Router: external-preferred route entries/vector; no per-request route-list copy; callbacks outside shared lock.
+- Middleware: mutation-time external-preferred immutable snapshots; one shared_ptr acquisition per request; callbacks outside lock.
+- HttpService: mutation-time provider snapshots; callbacks outside lock.
+- Resources: one reusable external-preferred stream buffer; no full-resource body copy.
+- Event/Command ingress: direct final-buffer reads as described above.
+- State representation: codec scratch moved off request stack.
+- HTTP/DNS lifecycle: state snapshot under locks, platform/user callbacks outside locks.
+
+Audited ESP32 WebSocket provider:
+
+- inbound receive/frame buffers external-preferred;
+- common complete-frame and first-fragment copy removed via moves;
+- continuation fragments append only as required to create one completed contiguous payload;
+- outbound payload copy retained intentionally because IDF asynchronous send requires provider-owned lifetime;
+- connection-list snapshots are mutation/lifecycle safety snapshots for broadcasts/close operations, not per-frame payload copies.
 
 ## CI checkpoint
 
-- Current Web host suite is green through the WebSocket binding contract.
-- HTTP known-length/HEAD pinned ESP32 build: green (`33161700071`).
-- HTTP + DNS pinned ESP32 build: green (`33160458979`).
-- Initial concrete WebSocket endpoint compile with conditional SDK exposure: green (`33162454811`).
-- Forced pinned-SDK WebSocket support build: pending run `33162559309`.
+Known-green checkpoints:
+
+- host example/core suite including Implementor example: `33163484385`;
+- Event/Command direct-read integration state: host `33163816790`, ESP32 `33163816789`;
+- ESP32 consumer example: `33163268936`;
+- hardened server start path: `33163078689`;
+- forced pinned WebSocket support: `33162559309`;
+- known-length/HEAD HTTP: `33161700071`;
+- HTTP+DNS: `33160458979`.
+
+The latest State-buffer/doc commits and ESP32 `da0555b7...` receive optimization trigger fresh current-head host/provider validation; check those before opening the tranche PR.
 
 ## Next work
 
-1. Resolve forced WebSocket provider run `33162559309`; fix any pinned Arduino-ESP32/IDF mismatch directly on ESP32 `feature/1-system-memory-provider`.
-2. Complete the server-side WebSocket concurrency/lifetime audit, especially unbind/rebind while the HTTP server is running, and add any missing provider-level tests that can be expressed without hardware.
-3. Determine the ESP32 WebSocket **client** concrete strategy. ESP-IDF 4.4 does not include a core client API; Espressif's client is a separate `esp_websocket_client` managed component. Do not reintroduce Links2004 or make a package dependency decision without preserving Web ownership and ESP32 optionality.
-4. Add `examples/Implementors/` and `examples/ESP32/` examples showing the two distinct extension surfaces.
-5. Expand README usage/architecture documentation, perform final memory/threading audit, and only then prepare tranche PR/release work.
+1. Confirm the current-head host suite and combined pinned ESP32 provider lane are green after `8661a5bc...`, `e39ad5af...`, this checkpoint commit, and ESP32 `da0555b7...`.
+2. Finish the remaining lightweight API/lifetime audit; do not add compatibility shims or speculative features.
+3. Keep ESP32 WebSocket client implementation blocked on the portable Web #23 security/policy design; do not weaken TLS semantics simply to mark #7 complete.
+4. Once current-head validation is green, prepare the tranche PR/release documentation and issue closure sequence. Do not change version numbers until the release step is explicitly started.
