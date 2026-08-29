@@ -249,6 +249,9 @@ public:
 
 class DnsServer final : public IDnsRequestDispatcher {
 private:
+    static constexpr auto ExternalPreferred =
+        System::Memory::MemoryPolicy::ExternalPreferred;
+
     class LifecycleObservable final : public Observable::ThreadSafeObservable {
     public:
         void StateChanged(DnsServerState oldState, DnsServerState newState) {
@@ -260,13 +263,27 @@ private:
         }
     };
 
+    bool EnsureObservable() noexcept {
+        if (_observable) return true;
+        try {
+            _observable = System::Memory::MakeShared<
+                LifecycleObservable,
+                ExternalPreferred
+            >();
+            return static_cast<bool>(_observable);
+        } catch (...) {
+            return false;
+        }
+    }
+
+    void NotifyStateChanged(DnsServerState oldState, DnsServerState newState) {
+        if (EnsureObservable()) _observable->StateChanged(oldState, newState);
+    }
+
 public:
+    /// <summary>Creates an allocation-free DNS server wrapper around the supplied platform implementation.</summary>
     explicit DnsServer(IDnsServerPlatform& platform)
-        : _platform(platform),
-          _observable(System::Memory::MakeShared<
-              LifecycleObservable,
-              System::Memory::MemoryPolicy::ExternalPreferred
-          >()) {}
+        : _platform(platform) {}
 
     ~DnsServer() {
         (void)Stop();
@@ -282,6 +299,7 @@ public:
     }
 
     Observable::ObserverHandlePtr RegisterObserver(IDnsServerObserver* observer) {
+        if (observer == nullptr || !EnsureObservable()) return {};
         return _observable->template RegisterObserverAs<IDnsServerObserver>(observer);
     }
 
@@ -303,6 +321,9 @@ public:
         if (!HasCapability(_platform.Capabilities(), WebCapability::Dns)) {
             return WebResult::Failure(WebError::Unsupported);
         }
+        if (!EnsureObservable()) {
+            return WebResult::Failure(WebError::ResourceExhausted);
+        }
 
         DnsServerState oldState;
         {
@@ -316,7 +337,7 @@ public:
             oldState = _state;
             _state = DnsServerState::Initializing;
         }
-        _observable->StateChanged(oldState, DnsServerState::Initializing);
+        NotifyStateChanged(oldState, DnsServerState::Initializing);
 
         _platform.Reset();
         const auto result = _platform.Initialize(configuration, *this);
@@ -325,7 +346,7 @@ public:
             std::lock_guard<std::mutex> lock(_mutex);
             _state = finalState;
         }
-        _observable->StateChanged(DnsServerState::Initializing, finalState);
+        NotifyStateChanged(DnsServerState::Initializing, finalState);
         return result;
     }
 
@@ -340,14 +361,14 @@ public:
             }
             _state = DnsServerState::Starting;
         }
-        _observable->StateChanged(DnsServerState::Ready, DnsServerState::Starting);
+        NotifyStateChanged(DnsServerState::Ready, DnsServerState::Starting);
         const auto result = _platform.Start();
         const auto finalState = result ? DnsServerState::Running : DnsServerState::Faulted;
         {
             std::lock_guard<std::mutex> lock(_mutex);
             _state = finalState;
         }
-        _observable->StateChanged(DnsServerState::Starting, finalState);
+        NotifyStateChanged(DnsServerState::Starting, finalState);
         return result;
     }
 
@@ -370,11 +391,11 @@ public:
 
         if (resetOnly) {
             _platform.Reset();
-            _observable->StateChanged(previous, DnsServerState::Stopped);
+            NotifyStateChanged(previous, DnsServerState::Stopped);
             return WebResult::Success();
         }
 
-        _observable->StateChanged(previous, DnsServerState::Stopping);
+        NotifyStateChanged(previous, DnsServerState::Stopping);
         const auto result = _platform.Stop();
         const auto finalState = result ? DnsServerState::Stopped : DnsServerState::Faulted;
         {
@@ -382,7 +403,7 @@ public:
             _state = finalState;
         }
         if (result) _platform.Reset();
-        _observable->StateChanged(DnsServerState::Stopping, finalState);
+        NotifyStateChanged(DnsServerState::Stopping, finalState);
         return result;
     }
 
