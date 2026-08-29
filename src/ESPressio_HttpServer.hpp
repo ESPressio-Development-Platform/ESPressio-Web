@@ -83,6 +83,9 @@ public:
 
 class HttpServer final : public IHttpRequestDispatcher {
 private:
+    static constexpr auto ExternalPreferred =
+        System::Memory::MemoryPolicy::ExternalPreferred;
+
     class LifecycleObservable final : public Observable::ThreadSafeObservable {
     public:
         void StateChanged(HttpServerState oldState, HttpServerState newState) {
@@ -96,13 +99,27 @@ private:
         }
     };
 
+    bool EnsureObservable() noexcept {
+        if (_observable) return true;
+        try {
+            _observable = System::Memory::MakeShared<
+                LifecycleObservable,
+                ExternalPreferred
+            >();
+            return static_cast<bool>(_observable);
+        } catch (...) {
+            return false;
+        }
+    }
+
+    void NotifyStateChanged(HttpServerState oldState, HttpServerState newState) {
+        if (EnsureObservable()) _observable->StateChanged(oldState, newState);
+    }
+
 public:
+    /// <summary>Creates an allocation-free HTTP server wrapper around the supplied platform implementation.</summary>
     explicit HttpServer(IHttpServerPlatform& platform)
-        : _platform(platform),
-          _observable(System::Memory::MakeShared<
-              LifecycleObservable,
-              System::Memory::MemoryPolicy::ExternalPreferred
-          >()) {}
+        : _platform(platform) {}
 
     ~HttpServer() {
         (void)Stop();
@@ -113,11 +130,12 @@ public:
     HttpServer& operator=(const HttpServer&) = delete;
 
     Observable::ObserverHandlePtr RegisterObserver(IHttpServerObserver* observer) {
+        if (observer == nullptr || !EnsureObservable()) return {};
         return _observable->template RegisterObserverAs<IHttpServerObserver>(observer);
     }
 
     void UnregisterObserver(IHttpServerObserver* observer) {
-        _observable->UnregisterObserver(observer);
+        if (_observable) _observable->UnregisterObserver(observer);
     }
 
     HttpServerState State() const noexcept {
@@ -157,6 +175,9 @@ public:
             !HasCapability(capabilities, WebCapability::PersistentConnections)) {
             return WebResult::Failure(WebError::Unsupported);
         }
+        if (!EnsureObservable()) {
+            return WebResult::Failure(WebError::ResourceExhausted);
+        }
 
         HttpServerState oldState;
         {
@@ -170,7 +191,7 @@ public:
             oldState = _state;
             _state = HttpServerState::Initializing;
         }
-        _observable->StateChanged(oldState, HttpServerState::Initializing);
+        NotifyStateChanged(oldState, HttpServerState::Initializing);
 
         _platform.Reset();
         const auto result = _platform.Initialize(configuration, *this);
@@ -182,7 +203,7 @@ public:
             if (result) _configuration = configuration;
             _state = finalState;
         }
-        _observable->StateChanged(HttpServerState::Initializing, finalState);
+        NotifyStateChanged(HttpServerState::Initializing, finalState);
         return result;
     }
 
@@ -197,7 +218,7 @@ public:
             }
             _state = HttpServerState::Starting;
         }
-        _observable->StateChanged(HttpServerState::Ready, HttpServerState::Starting);
+        NotifyStateChanged(HttpServerState::Ready, HttpServerState::Starting);
 
         const auto result = _platform.Start();
         const auto finalState = result
@@ -207,7 +228,7 @@ public:
             std::lock_guard<std::mutex> lock(_mutex);
             _state = finalState;
         }
-        _observable->StateChanged(HttpServerState::Starting, finalState);
+        NotifyStateChanged(HttpServerState::Starting, finalState);
         return result;
     }
 
@@ -230,11 +251,11 @@ public:
 
         if (resetOnly) {
             _platform.Reset();
-            _observable->StateChanged(previous, HttpServerState::Stopped);
+            NotifyStateChanged(previous, HttpServerState::Stopped);
             return WebResult::Success();
         }
 
-        _observable->StateChanged(previous, HttpServerState::Stopping);
+        NotifyStateChanged(previous, HttpServerState::Stopping);
         const auto result = _platform.Stop();
         const auto finalState = result
             ? HttpServerState::Stopped
@@ -244,7 +265,7 @@ public:
             _state = finalState;
         }
         if (result) _platform.Reset();
-        _observable->StateChanged(HttpServerState::Stopping, finalState);
+        NotifyStateChanged(HttpServerState::Stopping, finalState);
         return result;
     }
 
