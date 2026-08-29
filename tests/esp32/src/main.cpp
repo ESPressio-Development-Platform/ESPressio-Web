@@ -26,13 +26,14 @@ RootHandler root;
 ESPressio::Web::ESP32WebSocketEndpointPlatform webSocketPlatform(httpPlatform);
 ESPressio::Web::WebSocketEndpoint webSocketEndpoint(webSocketPlatform);
 
-// The pinned Arduino-ESP32 2.0.17 framework includes IDF 4.4's native
-// esp_websocket_client component. Instantiating the concrete client here and
-// retaining a runtime-reachable Connect() path forces both compilation and
-// linkage of the optional ESP32 client provider without making a network
-// connection during normal CI execution.
+// The ESP32 WebSocket client provider is an optional concrete capability. The
+// current Arduino/IDF platform bundle used by this integration target does not
+// necessarily ship the separately packaged esp_websocket_client component, so
+// exercise it only when that native component is actually present.
+#if __has_include(<esp_websocket_client.h>)
 ESPressio::Web::ESP32WebSocketClientPlatform webSocketClientPlatform;
 ESPressio::Web::WebSocketClient webSocketClient(webSocketClientPlatform);
+#endif
 
 ESPressio::Web::ESP32DnsServerPlatform dnsPlatform;
 ESPressio::Web::DnsServer dnsServer(dnsPlatform);
@@ -85,8 +86,9 @@ void setup() {
     (void)dnsServer.Initialize(dnsConfiguration);
     (void)dnsServer.Start();
 
+#if __has_include(<esp_websocket_client.h>)
     // millis() keeps this branch runtime-reachable so LTO cannot prove away
-    // the client's Connect implementation. It is false during ordinary boot.
+    // the optional client's Connect implementation. It is false during boot.
     if (millis() == UINT32_MAX) {
         ESPressio::Web::WebSocketClientConfiguration clientConfiguration;
         clientConfiguration.Host = "127.0.0.1";
@@ -94,6 +96,7 @@ void setup() {
         clientConfiguration.Path = "/compile-only";
         (void)webSocketClient.Connect(clientConfiguration);
     }
+#endif
 }
 
 void loop() {}
