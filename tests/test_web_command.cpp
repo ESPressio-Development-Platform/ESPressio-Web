@@ -101,6 +101,24 @@ void TestAcceptedCommandQueuesOwnerLibraryEvent() {
     assert(response.Begun && response.Completed);
 }
 
+void TestUnknownLengthCommandStreamsDirectlyIntoEnvelope() {
+    HttpCommandIngress ingress;
+    assert(ingress.Configure({3}));
+
+    Request request;
+    constexpr std::string_view command = "led toggle";
+    request.Body.assign(command.begin(), command.end());
+    request.DeclaredLength.reset();
+    Response response;
+
+    const auto result = Invoke(ingress, request, response);
+    assert(result);
+    assert(result.Disposition == HttpHandlerDisposition::Handled);
+    assert(request.Offset == command.size());
+    assert(response.Status == HttpStatus::Accepted);
+    assert(response.Begun && response.Completed);
+}
+
 void TestValidationAndMethodFallthrough() {
     HttpCommandIngress ingress;
     assert(!ingress.Configure({0}));
@@ -126,12 +144,21 @@ void TestValidationAndMethodFallthrough() {
     result = Invoke(ingress, oversized, oversizedResponse);
     assert(!result);
     assert(result.Result.Error == WebError::RequestTooLarge);
+
+    Request unknownOversized;
+    unknownOversized.Body.resize(ESPRESSIO_COMMAND_MAX_RAW_LENGTH, 'x');
+    unknownOversized.DeclaredLength.reset();
+    Response unknownOversizedResponse;
+    result = Invoke(ingress, unknownOversized, unknownOversizedResponse);
+    assert(!result);
+    assert(result.Result.Error == WebError::RequestTooLarge);
 }
 
 } // namespace
 
 int main() {
     TestAcceptedCommandQueuesOwnerLibraryEvent();
+    TestUnknownLengthCommandStreamsDirectlyIntoEnvelope();
     TestValidationAndMethodFallthrough();
     return 0;
 }
