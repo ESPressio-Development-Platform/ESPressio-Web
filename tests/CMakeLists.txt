@@ -15,7 +15,12 @@ set(ESPRESSIO_WEB_COMMON_INCLUDES
 add_executable(espressio_web_core_include test_core_include.cpp)
 add_executable(espressio_web_websocket_tests test_websocket.cpp)
 add_executable(espressio_web_websocket_policy_tests test_websocket_policy.cpp)
-add_executable(espressio_web_websocket_event_bridge_tests test_websocket_event_bridge.cpp)
+add_executable(
+    espressio_web_websocket_event_bridge_tests
+    test_websocket_event_bridge.cpp
+    ../../ESPressio-Threads/src/ESPressio_Thread.cpp
+    ../../ESPressio-Threads/src/ESPressio_ThreadTerminationDispatcher.cpp
+)
 add_executable(espressio_web_http_tests test_http.cpp)
 add_executable(espressio_web_router_tests test_router.cpp)
 add_executable(espressio_web_middleware_tests test_middleware.cpp)
