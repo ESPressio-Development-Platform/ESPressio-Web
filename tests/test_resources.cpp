@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 #include <ESPressio_HttpApplication.hpp>
 
@@ -101,6 +102,78 @@ public:
     }
 };
 
+class SequentialMemoryResources final : public IWebResourceProvider {
+private:
+    class ReadStream final : public IWebResourceReadStream {
+    public:
+        explicit ReadStream(std::string data)
+            : _data(std::move(data)) {}
+
+        uint64_t Size() const noexcept override {
+            return static_cast<uint64_t>(_data.size());
+        }
+
+        WebResourceReadResult Read(
+            uint8_t* destination,
+            std::size_t capacity
+        ) override {
+            if (destination == nullptr && capacity != 0) {
+                return {WebResult::Failure(WebError::InvalidConfiguration), 0};
+            }
+            if (_offset >= _data.size()) return {WebResult::Success(), 0};
+            const auto remaining = _data.size() - _offset;
+            const auto count = remaining < capacity ? remaining : capacity;
+            std::memcpy(destination, _data.data() + _offset, count);
+            _offset += count;
+            return {WebResult::Success(), count};
+        }
+
+    private:
+        std::string _data;
+        std::size_t _offset = 0;
+    };
+
+public:
+    std::unordered_map<std::string, std::string> Files;
+    mutable int StatCalls = 0;
+    mutable int RandomReadCalls = 0;
+    mutable int OpenReadCalls = 0;
+
+    WebResult Stat(std::string_view path, WebResourceMetadata& metadata) const override {
+        ++StatCalls;
+        const auto it = Files.find(std::string(path));
+        if (it == Files.end()) return WebResult::Failure(WebError::NotFound);
+        metadata.Size = it->second.size();
+        metadata.IsDirectory = false;
+        return WebResult::Success();
+    }
+
+    WebResourceReadResult Read(
+        std::string_view,
+        uint64_t,
+        uint8_t*,
+        std::size_t
+    ) const override {
+        ++RandomReadCalls;
+        return {WebResult::Failure(WebError::PlatformFailure), 0};
+    }
+
+    WebResult OpenRead(
+        std::string_view path,
+        WebResourceReadStreamPtr& stream
+    ) const override {
+        ++OpenReadCalls;
+        const auto it = Files.find(std::string(path));
+        if (it == Files.end()) return WebResult::Failure(WebError::NotFound);
+        stream = ESPressio::System::Memory::MakePolymorphicUnique<
+            IWebResourceReadStream,
+            ReadStream,
+            ESPressio::System::Memory::MemoryPolicy::ExternalPreferred
+        >(it->second);
+        return WebResult::Success();
+    }
+};
+
 class AlwaysNotHandled final : public IHttpRequestHandler {
 public:
     int Calls = 0;
@@ -115,7 +188,7 @@ HttpHandlerResult Invoke(IHttpRequestHandler& handler, Request& request, Respons
     return handler.Handle(context);
 }
 
-void TestStaticResourceStreaming() {
+void TestStaticResourceStreamingFallback() {
     MemoryResources resources;
     resources.Files["/index.html"] = "abcdefghij";
     StaticResourceHandler staticHandler(resources);
@@ -132,6 +205,26 @@ void TestStaticResourceStreaming() {
     assert(response.Length == std::optional<std::size_t>(10));
     assert(response.Headers["Content-Type"] == "text/html; charset=utf-8");
     assert(resources.ReadCalls == 3);
+}
+
+void TestSequentialResourceStreamingUsesOneOpen() {
+    SequentialMemoryResources resources;
+    resources.Files["/index.html"] = "abcdefghij";
+    StaticResourceHandler staticHandler(resources);
+    StaticResourceConfiguration config;
+    config.ReadChunkBytes = 4;
+    assert(staticHandler.Configure(config));
+
+    Request request;
+    Response response;
+    const auto result = Invoke(staticHandler, request, response);
+    assert(result && result.Disposition == HttpHandlerDisposition::Handled);
+    assert(response.Completed && !response.Aborted);
+    assert(response.Body == "abcdefghij");
+    assert(response.Length == std::optional<std::size_t>(10));
+    assert(resources.OpenReadCalls == 1);
+    assert(resources.StatCalls == 0);
+    assert(resources.RandomReadCalls == 0);
 }
 
 void TestHeadDoesNotReadBody() {
@@ -214,7 +307,8 @@ void TestResourceBackedErrorPage() {
 } // namespace
 
 int main() {
-    TestStaticResourceStreaming();
+    TestStaticResourceStreamingFallback();
+    TestSequentialResourceStreamingUsesOneOpen();
     TestHeadDoesNotReadBody();
     TestMissingFallsThroughAndTraversalFails();
     TestApplicationFallbackAndDefaultError();
