@@ -263,21 +263,28 @@ private:
         }
     };
 
-    bool EnsureObservable() noexcept {
-        if (_observable) return true;
+    std::shared_ptr<LifecycleObservable> ObservableSnapshot() const {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        return _observable;
+    }
+
+    std::shared_ptr<LifecycleObservable> EnsureObservable() noexcept {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        if (_observable) return _observable;
         try {
             _observable = System::Memory::MakeShared<
                 LifecycleObservable,
                 ExternalPreferred
             >();
-            return static_cast<bool>(_observable);
         } catch (...) {
-            return false;
+            return {};
         }
+        return _observable;
     }
 
     void NotifyStateChanged(DnsServerState oldState, DnsServerState newState) {
-        if (EnsureObservable()) _observable->StateChanged(oldState, newState);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->StateChanged(oldState, newState);
     }
 
 public:
@@ -298,9 +305,13 @@ public:
         return _state;
     }
 
+    /// <summary>Registers a DNS lifecycle observer, materializing externally preferred observer bookkeeping on first use.</summary>
     Observable::ObserverHandlePtr RegisterObserver(IDnsServerObserver* observer) {
-        if (observer == nullptr || !EnsureObservable()) return {};
-        return _observable->template RegisterObserverAs<IDnsServerObserver>(observer);
+        if (observer == nullptr) return {};
+        auto observable = EnsureObservable();
+        return observable
+            ? observable->template RegisterObserverAs<IDnsServerObserver>(observer)
+            : Observable::ObserverHandlePtr{};
     }
 
     WebResult SetRequestHandler(IDnsRequestHandler* handler) noexcept {
@@ -314,15 +325,13 @@ public:
         return WebResult::Success();
     }
 
+    /// <summary>Initializes DNS service state without allocating observer infrastructure when no lifecycle observers are registered.</summary>
     WebResult Initialize(const DnsServerConfiguration& configuration = {}) {
         if (configuration.Port == 0 || configuration.MaximumPendingRequests == 0) {
             return WebResult::Failure(WebError::InvalidConfiguration);
         }
         if (!HasCapability(_platform.Capabilities(), WebCapability::Dns)) {
             return WebResult::Failure(WebError::Unsupported);
-        }
-        if (!EnsureObservable()) {
-            return WebResult::Failure(WebError::ResourceExhausted);
         }
 
         DnsServerState oldState;
@@ -437,6 +446,7 @@ public:
 
 private:
     IDnsServerPlatform& _platform;
+    mutable std::mutex _observableMutex;
     std::shared_ptr<LifecycleObservable> _observable;
     mutable std::mutex _mutex;
     DnsServerState _state = DnsServerState::Stopped;
