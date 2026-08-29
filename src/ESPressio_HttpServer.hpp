@@ -99,21 +99,28 @@ private:
         }
     };
 
-    bool EnsureObservable() noexcept {
-        if (_observable) return true;
+    std::shared_ptr<LifecycleObservable> ObservableSnapshot() const {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        return _observable;
+    }
+
+    std::shared_ptr<LifecycleObservable> EnsureObservable() noexcept {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        if (_observable) return _observable;
         try {
             _observable = System::Memory::MakeShared<
                 LifecycleObservable,
                 ExternalPreferred
             >();
-            return static_cast<bool>(_observable);
         } catch (...) {
-            return false;
+            return {};
         }
+        return _observable;
     }
 
     void NotifyStateChanged(HttpServerState oldState, HttpServerState newState) {
-        if (EnsureObservable()) _observable->StateChanged(oldState, newState);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->StateChanged(oldState, newState);
     }
 
 public:
@@ -129,13 +136,18 @@ public:
     HttpServer(const HttpServer&) = delete;
     HttpServer& operator=(const HttpServer&) = delete;
 
+    /// <summary>Registers a lifecycle observer, materializing externally preferred observer bookkeeping on first use.</summary>
     Observable::ObserverHandlePtr RegisterObserver(IHttpServerObserver* observer) {
-        if (observer == nullptr || !EnsureObservable()) return {};
-        return _observable->template RegisterObserverAs<IHttpServerObserver>(observer);
+        if (observer == nullptr) return {};
+        auto observable = EnsureObservable();
+        return observable
+            ? observable->template RegisterObserverAs<IHttpServerObserver>(observer)
+            : Observable::ObserverHandlePtr{};
     }
 
     void UnregisterObserver(IHttpServerObserver* observer) {
-        if (_observable) _observable->UnregisterObserver(observer);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->UnregisterObserver(observer);
     }
 
     HttpServerState State() const noexcept {
@@ -156,6 +168,7 @@ public:
         return _configuration;
     }
 
+    /// <summary>Initializes the HTTP service without allocating observer infrastructure unless observers were registered.</summary>
     WebResult Initialize(const HttpServerConfiguration& configuration) {
         if (configuration.Port == 0 ||
             configuration.MaximumConnections == 0 ||
@@ -174,9 +187,6 @@ public:
         if (configuration.KeepAlive &&
             !HasCapability(capabilities, WebCapability::PersistentConnections)) {
             return WebResult::Failure(WebError::Unsupported);
-        }
-        if (!EnsureObservable()) {
-            return WebResult::Failure(WebError::ResourceExhausted);
         }
 
         HttpServerState oldState;
@@ -328,6 +338,7 @@ public:
 
 private:
     IHttpServerPlatform& _platform;
+    mutable std::mutex _observableMutex;
     std::shared_ptr<LifecycleObservable> _observable;
     mutable std::mutex _mutex;
     HttpServerConfiguration _configuration{};
