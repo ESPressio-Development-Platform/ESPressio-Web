@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include <ESPressio_Memory.hpp>
+#include <ESPressio_PolymorphicMemory.hpp>
 
 #include "ESPressio_HttpServer.hpp"
 
@@ -23,6 +24,25 @@ struct WebResourceReadResult final {
     explicit operator bool() const noexcept { return static_cast<bool>(Result); }
 };
 
+/// <summary>Provides sequential reads from one already-open Web resource.</summary>
+class IWebResourceReadStream {
+public:
+    virtual ~IWebResourceReadStream() = default;
+
+    /// <summary>Returns the complete resource size in bytes.</summary>
+    virtual uint64_t Size() const noexcept = 0;
+
+    /// <summary>Reads the next contiguous resource bytes and advances the stream.</summary>
+    virtual WebResourceReadResult Read(
+        uint8_t* destination,
+        std::size_t capacity
+    ) = 0;
+};
+
+/// <summary>Policy-aware owner for an implementation-specific Web resource read stream.</summary>
+using WebResourceReadStreamPtr =
+    System::Memory::PolymorphicUniquePtr<IWebResourceReadStream>;
+
 class IWebResourceProvider {
 public:
     virtual ~IWebResourceProvider() = default;
@@ -33,6 +53,17 @@ public:
         uint8_t* destination,
         std::size_t capacity
     ) const = 0;
+
+    /// <summary>Opens a resource once for efficient sequential streaming.</summary>
+    /// <remarks>Providers without a sequential capability may return <c>Unsupported</c>; callers can use the offset-based <c>Read</c> path instead.</remarks>
+    virtual WebResult OpenRead(
+        std::string_view path,
+        WebResourceReadStreamPtr& stream
+    ) const {
+        (void)path;
+        stream.reset();
+        return WebResult::Failure(WebError::Unsupported);
+    }
 };
 
 class IHttpContentTypeResolver {
@@ -103,14 +134,30 @@ inline WebResult WriteWebResourceResponse(
     }
 
     WebResourceMetadata metadata;
-    auto result = provider.Stat(path, metadata);
-    if (!result) return result;
-    if (metadata.IsDirectory) return WebResult::Failure(WebError::NotFound);
+    WebResourceReadStreamPtr stream;
+
+    if (!headersOnly) {
+        const auto openResult = provider.OpenRead(path, stream);
+        if (openResult) {
+            if (!stream) return WebResult::Failure(WebError::PlatformFailure);
+            metadata.Size = stream->Size();
+            metadata.IsDirectory = false;
+        } else if (openResult.Error != WebError::Unsupported) {
+            return openResult;
+        }
+    }
+
+    if (!stream) {
+        auto result = provider.Stat(path, metadata);
+        if (!result) return result;
+        if (metadata.IsDirectory) return WebResult::Failure(WebError::NotFound);
+    }
+
     if (metadata.Size > static_cast<uint64_t>(std::numeric_limits<std::size_t>::max())) {
         return WebResult::Failure(WebError::ResourceExhausted);
     }
 
-    result = response.ContentType(contentTypeResolver.Resolve(path));
+    auto result = response.ContentType(contentTypeResolver.Resolve(path));
     if (!result) return result;
     result = response.Begin(static_cast<std::size_t>(metadata.Size));
     if (!result) return result;
@@ -129,7 +176,9 @@ inline WebResult WriteWebResourceResponse(
             ? static_cast<std::size_t>(remaining)
             : buffer.size();
 
-        const auto read = provider.Read(path, offset, buffer.data(), requested);
+        const auto read = stream
+            ? stream->Read(buffer.data(), requested)
+            : provider.Read(path, offset, buffer.data(), requested);
         if (!read.Result) {
             response.Abort();
             return read.Result;
