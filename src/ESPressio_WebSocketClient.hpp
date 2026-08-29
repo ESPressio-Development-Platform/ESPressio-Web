@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <string_view>
 
 #include <ESPressio_Memory.hpp>
@@ -28,6 +29,9 @@ public:
 
 class WebSocketClient final : private IWebSocketClientPlatformSink {
 private:
+    static constexpr auto ExternalPreferred =
+        System::Memory::MemoryPolicy::ExternalPreferred;
+
     class ClientObservable final : public Observable::ThreadSafeObservable {
     public:
         void StateChanged(WebSocketClientState previous, WebSocketClientState current) {
@@ -91,17 +95,35 @@ private:
         }
     };
 
-public:
-    WebSocketClient()
-        : _observable(
-            System::Memory::MakeShared<
-                ClientObservable,
-                System::Memory::MemoryPolicy::ExternalPreferred
-            >()
-          ) {}
+    std::shared_ptr<ClientObservable> ObservableSnapshot() const {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        return _observable;
+    }
 
-    explicit WebSocketClient(IWebSocketClientPlatform& platform)
-        : WebSocketClient() {
+    std::shared_ptr<ClientObservable> EnsureObservable() noexcept {
+        std::lock_guard<std::mutex> lock(_observableMutex);
+        if (_observable) return _observable;
+        try {
+            _observable = System::Memory::MakeShared<
+                ClientObservable,
+                ExternalPreferred
+            >();
+        } catch (...) {
+            return {};
+        }
+        return _observable;
+    }
+
+    void NotifyStateChanged(WebSocketClientState previous, WebSocketClientState current) {
+        auto observable = ObservableSnapshot();
+        if (observable) observable->StateChanged(previous, current);
+    }
+
+public:
+    /// <summary>Creates an allocation-free detached WebSocket client.</summary>
+    WebSocketClient() = default;
+
+    explicit WebSocketClient(IWebSocketClientPlatform& platform) {
         Attach(platform);
     }
 
@@ -117,7 +139,7 @@ public:
         _platform = &platform;
         _platform->SetSink(this);
         _state = platform.IsConnected() ? WebSocketClientState::Connected : WebSocketClientState::Attached;
-        _observable->StateChanged(previous, _state);
+        NotifyStateChanged(previous, _state);
         return WebResult::Success();
     }
 
@@ -128,12 +150,18 @@ public:
         SetState(WebSocketClientState::Detached);
     }
 
+    /// <summary>Registers a client observer, materializing externally preferred observer bookkeeping on first use.</summary>
     Observable::ObserverHandlePtr RegisterObserver(IWebSocketClientObserver* observer) {
-        return _observable->template RegisterObserverAs<IWebSocketClientObserver>(observer);
+        if (observer == nullptr) return {};
+        auto observable = EnsureObservable();
+        return observable
+            ? observable->template RegisterObserverAs<IWebSocketClientObserver>(observer)
+            : Observable::ObserverHandlePtr{};
     }
 
     void UnregisterObserver(IWebSocketClientObserver* observer) {
-        _observable->UnregisterObserver(observer);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->UnregisterObserver(observer);
     }
 
     WebResult Connect(const WebSocketClientConfiguration& configuration) {
@@ -293,6 +321,7 @@ private:
     }
 
     IWebSocketClientPlatform* _platform = nullptr;
+    mutable std::mutex _observableMutex;
     std::shared_ptr<ClientObservable> _observable;
     WebSocketClientState _state = WebSocketClientState::Detached;
 
@@ -300,12 +329,13 @@ private:
         if (_state == state) return;
         const auto previous = _state;
         _state = state;
-        _observable->StateChanged(previous, state);
+        NotifyStateChanged(previous, state);
     }
 
     void OnPlatformWebSocketClientConnected(IWebSocketConnection& connection) override {
         SetState(WebSocketClientState::Connected);
-        _observable->Connected(connection);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->Connected(connection);
     }
 
     void OnPlatformWebSocketClientBinary(
@@ -313,23 +343,27 @@ private:
         const uint8_t* data,
         std::size_t size
     ) override {
-        _observable->Binary(connection, data, size);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->Binary(connection, data, size);
     }
 
     void OnPlatformWebSocketClientText(
         IWebSocketConnection& connection,
         std::string_view text
     ) override {
-        _observable->Text(connection, text);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->Text(connection, text);
     }
 
     void OnPlatformWebSocketClientDisconnected(const WebSocketCloseReason& reason) override {
         SetState(WebSocketClientState::Disconnected);
-        _observable->Disconnected(reason);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->Disconnected(reason);
     }
 
     void OnPlatformWebSocketClientActivity(const WebSocketActivity& activity) override {
-        _observable->Activity(activity);
+        auto observable = ObservableSnapshot();
+        if (observable) observable->Activity(activity);
     }
 };
 
