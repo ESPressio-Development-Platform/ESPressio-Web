@@ -8,6 +8,8 @@
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <mutex>
+#include <new>
 #include <string_view>
 #include <type_traits>
 
@@ -71,20 +73,30 @@ public:
     using Value = State::StateValueType<TDefinition>;
     using Update = State::StateUpdate<Value>;
 
+    /// <summary>Encodes and streams one State snapshot using reusable external-preferred scratch storage.</summary>
+    /// <remarks>The codec buffer is materialized lazily so globally constructed handlers do not allocate before the platform memory provider is installed. Concurrent calls are serialized around the shared scratch buffer.</remarks>
     WebResult Write(
         const Update& update,
         WebRequestContext& context
     ) override {
-        PayloadBuffer payload(State::StateCodec<TDefinition>::MaximumEncodedSize);
+        std::lock_guard<std::mutex> payloadLock(_payloadMutex);
+        try {
+            if (_payload.size() != State::StateCodec<TDefinition>::MaximumEncodedSize) {
+                _payload.resize(State::StateCodec<TDefinition>::MaximumEncodedSize);
+            }
+        } catch (const std::bad_alloc&) {
+            return WebResult::Failure(WebError::ResourceExhausted);
+        }
+
         std::size_t payloadSize = 0;
         if (!State::StateCodec<TDefinition>::Encode(
                 update.Value,
-                payload.data(),
-                payload.size(),
+                _payload.data(),
+                _payload.size(),
                 payloadSize)) {
             return WebResult::Failure(WebError::ProtocolError);
         }
-        if (payloadSize > payload.size()) {
+        if (payloadSize > _payload.size()) {
             return WebResult::Failure(WebError::ProtocolError);
         }
 
@@ -123,7 +135,7 @@ public:
         result = response.Begin(payloadSize);
         if (!result) return result;
         if (context.Request().Method() != HttpMethod::Head && payloadSize != 0) {
-            result = response.Write(payload.data(), payloadSize);
+            result = response.Write(_payload.data(), payloadSize);
             if (!result) {
                 response.Abort();
                 return result;
@@ -156,6 +168,9 @@ private:
             )
         );
     }
+
+    mutable std::mutex _payloadMutex;
+    PayloadBuffer _payload;
 };
 
 template<typename TContract, typename TDefinition>
