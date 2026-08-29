@@ -6,16 +6,50 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <new>
 #include <string_view>
+#include <utility>
 
 #include <ESPressio_IFileStorage.hpp>
 #include <ESPressio_Memory.hpp>
+#include <ESPressio_PolymorphicMemory.hpp>
 
 #include "ESPressio_Resources.hpp"
 
 namespace ESPressio::Web {
 
 class PersistenceWebResourceProvider final : public IWebResourceProvider {
+private:
+    /// <summary>Adapts one Persistence sequential file stream to the Web resource stream contract.</summary>
+    class ResourceReadStream final : public IWebResourceReadStream {
+    public:
+        explicit ResourceReadStream(Persistence::FileReadStreamPtr stream)
+            : _stream(std::move(stream)) {}
+
+        uint64_t Size() const noexcept override {
+            return _stream ? _stream->Size() : 0;
+        }
+
+        WebResourceReadResult Read(
+            uint8_t* destination,
+            std::size_t capacity
+        ) override {
+            if (!_stream) {
+                return {WebResult::Failure(WebError::InvalidState), 0};
+            }
+            std::size_t bytesRead = 0;
+            const auto status = _stream->Read(
+                destination,
+                capacity,
+                bytesRead
+            );
+            return {Translate(status), bytesRead};
+        }
+
+    private:
+        Persistence::FileReadStreamPtr _stream;
+    };
+
 public:
     explicit PersistenceWebResourceProvider(Persistence::IFileStorage& storage)
         : _storage(storage) {}
@@ -53,6 +87,42 @@ public:
             bytesRead
         );
         return {Translate(status), bytesRead};
+    }
+
+    /// <summary>Opens the persistence file once and adapts it to a sequential Web resource stream.</summary>
+    /// <remarks>The native path and stream wrappers use <c>ExternalPreferred</c> storage. ESP32 backends therefore avoid reopening LittleFS/SPIFFS/SD files for every HTTP response chunk.</remarks>
+    WebResult OpenRead(
+        std::string_view path,
+        WebResourceReadStreamPtr& stream
+    ) const override {
+        stream.reset();
+        const auto nativePath = MakePath(path);
+        Persistence::FileReadStreamPtr persistenceStream;
+        const auto status = _storage.OpenRead(
+            nativePath.c_str(),
+            persistenceStream
+        );
+        if (status != Persistence::StorageStatus::Success) {
+            return Translate(status);
+        }
+        if (!persistenceStream) {
+            return WebResult::Failure(WebError::PlatformFailure);
+        }
+
+        try {
+            stream = System::Memory::MakePolymorphicUnique<
+                IWebResourceReadStream,
+                ResourceReadStream,
+                System::Memory::MemoryPolicy::ExternalPreferred
+            >(std::move(persistenceStream));
+        } catch (const std::bad_alloc&) {
+            return WebResult::Failure(WebError::ResourceExhausted);
+        } catch (...) {
+            return WebResult::Failure(WebError::PlatformFailure);
+        }
+        return stream
+            ? WebResult::Success()
+            : WebResult::Failure(WebError::ResourceExhausted);
     }
 
 private:
