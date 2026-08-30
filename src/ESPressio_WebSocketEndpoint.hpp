@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include <ESPressio_Memory.hpp>
+#include <ESPressio_Synchronization.hpp>
 #include <ESPressio_ThreadSafeObservable.hpp>
 
 #include "ESPressio_WebSocket.hpp"
@@ -16,9 +17,7 @@ namespace ESPressio::Web {
 class IWebSocketEndpointObserver : public Observable::IObserver {
 public:
     ~IWebSocketEndpointObserver() override = default;
-    /// <summary>Called whenever the endpoint lifecycle state changes.</summary>
     virtual void OnWebSocketEndpointStateChanged(WebSocketEndpointState, WebSocketEndpointState) {}
-    /// <summary>Called for implementation-level WebSocket diagnostic activity.</summary>
     virtual void OnWebSocketActivity(const WebSocketActivity&) {}
     virtual void OnWebSocketConnected(IWebSocketConnection&) {}
     virtual void OnWebSocketBinary(IWebSocketConnection&, const uint8_t*, std::size_t) {}
@@ -28,8 +27,7 @@ public:
 
 class WebSocketEndpoint final : private IWebSocketEndpointPlatformSink {
 private:
-    static constexpr auto ExternalPreferred =
-        System::Memory::MemoryPolicy::ExternalPreferred;
+    static constexpr auto ExternalPreferred = System::Memory::MemoryPolicy::ExternalPreferred;
 
     class EndpointObservable final : public Observable::ThreadSafeObservable {
     public:
@@ -42,7 +40,6 @@ private:
                 );
             });
         }
-
         void Activity(const WebSocketActivity& activity) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -52,7 +49,6 @@ private:
                 );
             });
         }
-
         void Connected(IWebSocketConnection& connection) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -62,7 +58,6 @@ private:
                 );
             });
         }
-
         void Binary(IWebSocketConnection& connection, const uint8_t* data, std::size_t size) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -72,7 +67,6 @@ private:
                 );
             });
         }
-
         void Text(IWebSocketConnection& connection, std::string_view text) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -82,7 +76,6 @@ private:
                 );
             });
         }
-
         void Disconnected(WebSocketConnectionId id, const WebSocketCloseReason& reason) {
             ExecuteNotification([&](NotificationContext& context) {
                 context.WithObservers<IWebSocketEndpointObserver>(
@@ -95,18 +88,15 @@ private:
     };
 
     std::shared_ptr<EndpointObservable> ObservableSnapshot() const {
-        std::lock_guard<std::mutex> lock(_observableMutex);
+        std::lock_guard<System::Synchronization::Mutex> lock(_observableMutex);
         return _observable;
     }
 
     std::shared_ptr<EndpointObservable> EnsureObservable() noexcept {
-        std::lock_guard<std::mutex> lock(_observableMutex);
+        std::lock_guard<System::Synchronization::Mutex> lock(_observableMutex);
         if (_observable) return _observable;
         try {
-            _observable = System::Memory::MakeShared<
-                EndpointObservable,
-                ExternalPreferred
-            >();
+            _observable = System::Memory::MakeShared<EndpointObservable, ExternalPreferred>();
         } catch (...) {
             return {};
         }
@@ -119,17 +109,9 @@ private:
     }
 
 public:
-    /// <summary>Creates an allocation-free detached WebSocket endpoint.</summary>
     WebSocketEndpoint() = default;
-
-    explicit WebSocketEndpoint(IWebSocketEndpointPlatform& platform) {
-        Attach(platform);
-    }
-
-    ~WebSocketEndpoint() {
-        (void)Unbind();
-        Detach();
-    }
+    explicit WebSocketEndpoint(IWebSocketEndpointPlatform& platform) { Attach(platform); }
+    ~WebSocketEndpoint() { (void)Unbind(); Detach(); }
 
     WebSocketEndpoint(const WebSocketEndpoint&) = delete;
     WebSocketEndpoint& operator=(const WebSocketEndpoint&) = delete;
@@ -154,10 +136,7 @@ public:
     }
 
     bool IsAttached() const noexcept { return _platform != nullptr; }
-    bool IsBound() const noexcept {
-        return _platform != nullptr && _platform->IsBound();
-    }
-
+    bool IsBound() const noexcept { return _platform != nullptr && _platform->IsBound(); }
     WebSocketEndpointState State() const noexcept { return _state; }
 
     WebResult Bind(const WebSocketEndpointConfiguration& configuration) {
@@ -184,7 +163,6 @@ public:
         return result;
     }
 
-    /// <summary>Registers an endpoint observer, materializing externally preferred observer bookkeeping on first use.</summary>
     Observable::ObserverHandlePtr RegisterObserver(IWebSocketEndpointObserver* observer) {
         if (observer == nullptr) return {};
         auto observable = EnsureObservable();
@@ -221,7 +199,7 @@ public:
 
 private:
     IWebSocketEndpointPlatform* _platform = nullptr;
-    mutable std::mutex _observableMutex;
+    mutable System::Synchronization::Mutex _observableMutex;
     std::shared_ptr<EndpointObservable> _observable;
     WebSocketEndpointState _state = WebSocketEndpointState::Detached;
 
@@ -236,32 +214,18 @@ private:
         auto observable = ObservableSnapshot();
         if (observable) observable->Connected(connection);
     }
-
-    void OnPlatformWebSocketBinary(
-        IWebSocketConnection& connection,
-        const uint8_t* data,
-        std::size_t size
-    ) override {
+    void OnPlatformWebSocketBinary(IWebSocketConnection& connection, const uint8_t* data, std::size_t size) override {
         auto observable = ObservableSnapshot();
         if (observable) observable->Binary(connection, data, size);
     }
-
-    void OnPlatformWebSocketText(
-        IWebSocketConnection& connection,
-        std::string_view text
-    ) override {
+    void OnPlatformWebSocketText(IWebSocketConnection& connection, std::string_view text) override {
         auto observable = ObservableSnapshot();
         if (observable) observable->Text(connection, text);
     }
-
-    void OnPlatformWebSocketDisconnected(
-        WebSocketConnectionId id,
-        const WebSocketCloseReason& reason
-    ) override {
+    void OnPlatformWebSocketDisconnected(WebSocketConnectionId id, const WebSocketCloseReason& reason) override {
         auto observable = ObservableSnapshot();
         if (observable) observable->Disconnected(id, reason);
     }
-
     void OnPlatformWebSocketActivity(const WebSocketActivity& activity) override {
         auto observable = ObservableSnapshot();
         if (observable) observable->Activity(activity);
