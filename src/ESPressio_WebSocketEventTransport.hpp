@@ -6,7 +6,9 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
+#include <utility>
 
 #include <ESPressio_EventTransport.hpp>
 
@@ -50,17 +52,18 @@ public:
         _receiver = nullptr;
     }
 
-    bool Send(const Event::EventTransportPacket& packet) override {
+    bool Send(Event::EventTransportPacket packet) override {
         auto* endpoint = _endpoint;
         if (
             endpoint == nullptr ||
-            packet.Data == nullptr ||
-            packet.Size == 0 ||
-            packet.Size > _configuration.MaximumPacketBytes
+            !packet ||
+            packet.Size() > _configuration.MaximumPacketBytes
         ) {
             return false;
         }
-        return static_cast<bool>(endpoint->BroadcastBinary(packet.Data, packet.Size));
+        return static_cast<bool>(
+            endpoint->BroadcastBinary(packet.Data(), packet.Size())
+        );
     }
 
     void SetReceiver(Event::IEventTransportReceiver* receiver) override {
@@ -93,7 +96,18 @@ private:
         ) {
             return;
         }
-        receiver->ReceiveEventTransportPacket(this, data, size);
+
+        Event::EventTransportBuffer buffer;
+        try {
+            buffer.resize(size);
+        } catch (...) {
+            return;
+        }
+        std::memcpy(buffer.data(), data, size);
+        receiver->ReceiveEventTransportPacket(
+            this,
+            Event::EventTransportPacket(std::move(buffer))
+        );
     }
 };
 
@@ -128,19 +142,20 @@ public:
         _receiver = nullptr;
     }
 
-    bool Send(const Event::EventTransportPacket& packet) override {
+    bool Send(Event::EventTransportPacket packet) override {
         auto* client = _client;
         if (
             client == nullptr ||
-            packet.Data == nullptr ||
-            packet.Size == 0 ||
-            packet.Size > _configuration.MaximumPacketBytes
+            !packet ||
+            packet.Size() > _configuration.MaximumPacketBytes
         ) {
             return false;
         }
         auto* connection = client->Connection();
         return connection != nullptr &&
-            static_cast<bool>(connection->SendBinary(packet.Data, packet.Size));
+            static_cast<bool>(
+                connection->SendBinary(packet.Data(), packet.Size())
+            );
     }
 
     void SetReceiver(Event::IEventTransportReceiver* receiver) override {
@@ -173,7 +188,18 @@ private:
         ) {
             return;
         }
-        receiver->ReceiveEventTransportPacket(this, data, size);
+
+        Event::EventTransportBuffer buffer;
+        try {
+            buffer.resize(size);
+        } catch (...) {
+            return;
+        }
+        std::memcpy(buffer.data(), data, size);
+        receiver->ReceiveEventTransportPacket(
+            this,
+            Event::EventTransportPacket(std::move(buffer))
+        );
     }
 };
 
