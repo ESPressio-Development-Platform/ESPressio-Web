@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <mutex>
 #include <optional>
+#include <utility>
 
 #include <ESPressio_IEventTransport.hpp>
 #include <ESPressio_Memory.hpp>
@@ -26,10 +27,7 @@ class HttpEventIngress final :
     public Event::IEventTransport,
     public IHttpRouteHandler {
 private:
-    using PacketBuffer = System::Memory::Vector<
-        uint8_t,
-        System::Memory::MemoryPolicy::ExternalPreferred
-    >;
+    using PacketBuffer = Event::EventTransportBuffer;
 
 public:
     WebResult Configure(const HttpEventIngressConfiguration& configuration) {
@@ -45,7 +43,7 @@ public:
     // HTTP server ingress is intentionally receive-only. Event transport
     // egress requires a persistent/peer-addressable transport such as
     // WebSocket, TCP, UDP, ESP-NOW, etc.
-    bool Send(const Event::EventTransportPacket&) override { return false; }
+    bool Send(Event::EventTransportPacket) override { return false; }
 
     void SetReceiver(Event::IEventTransportReceiver* receiver) override {
         std::lock_guard<std::mutex> lock(_mutex);
@@ -91,7 +89,10 @@ public:
         if (!bodyResult) return HttpHandlerResult::Handled(bodyResult);
         if (packet.empty()) return HttpHandlerResult::Failure(WebError::ProtocolError);
 
-        receiver->ReceiveEventTransportPacket(this, packet.data(), packet.size());
+        receiver->ReceiveEventTransportPacket(
+            this,
+            Event::EventTransportPacket(std::move(packet))
+        );
 
         auto result = context.Response().Status(HttpStatus::Accepted);
         if (!result) return HttpHandlerResult::Handled(result);
