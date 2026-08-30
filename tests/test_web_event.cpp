@@ -83,12 +83,11 @@ public:
 
     void ReceiveEventTransportPacket(
         ESPressio::Event::IEventTransport* transport,
-        const uint8_t* data,
-        std::size_t size
+        ESPressio::Event::EventTransportPacket packet
     ) override {
         ++Calls;
         Transport = transport;
-        Packet.assign(data, data + size);
+        Packet.assign(packet.Data(), packet.Data() + packet.Size());
     }
 };
 
