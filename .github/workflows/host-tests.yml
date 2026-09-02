@@ -16,55 +16,55 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-System
-          ref: feature/1-system-memory-policy
+          ref: main
           path: ESPressio-System
       - name: Check out ESPressio Observable working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Observable
-          ref: feature/16-rtti-free-observer-registry
+          ref: main
           path: ESPressio-Observable
       - name: Check out ESPressio Persistence working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
-          ref: feature/10-platform-storage-abstractions
+          ref: main
           path: ESPressio-Persistence
       - name: Check out ESPressio State working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-State
-          ref: feature/1-state-foundation
+          ref: main
           path: ESPressio-State
       - name: Check out ESPressio Event working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Event
-          ref: feature/57-rtti-free-memory-efficiency
+          ref: main
           path: ESPressio-Event
       - name: Check out ESPressio Command working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Command
-          ref: feature/30-async-command-routing
+          ref: main
           path: ESPressio-Command
       - name: Check out ESPressio Threads working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Threads
-          ref: optimisation/69-resource-footprint
+          ref: main
           path: ESPressio-Threads
       - name: Check out ESPressio Task working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Task
-          ref: feature/1-task-execution
+          ref: main
           path: ESPressio-Task
       - name: Check out ESPressio Timing working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Timing
-          ref: feature/29-platform-clock-abstractions
+          ref: main
           path: ESPressio-Timing
       - name: Check out ESPressio Units
         uses: actions/checkout@v4
