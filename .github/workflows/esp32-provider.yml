@@ -1,0 +1,32 @@
+name: ESP32 Provider Integration
+
+on:
+  push:
+    branches: [ main, 'work/**' ]
+  pull_request:
+
+jobs:
+  esp32-http-provider:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out ESPressio ESP32 working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-ESP32
+          ref: feature/1-system-memory-provider
+          path: ESPressio-ESP32
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install PlatformIO
+        run: pip install platformio
+      - name: Build ESP32 provider integration
+        working-directory: tests/esp32
+        run: pio run
+      - name: Build ESP32 consumer example
+        working-directory: tests/esp32
+        run: |
+          cp ../../examples/ESP32/HttpAndWebSocket/main.cpp src/main.cpp
+          pio run -t clean
+          pio run

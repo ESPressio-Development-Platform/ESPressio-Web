@@ -1,0 +1,80 @@
+name: Host Tests
+
+on:
+  push:
+    branches: [ main, 'feature/**', 'bugfix/**', 'optimisation/**', 'work/**' ]
+  pull_request:
+
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-Web
+      - name: Check out ESPressio System working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: feature/1-system-memory-policy
+          path: ESPressio-System
+      - name: Check out ESPressio Observable working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: feature/16-rtti-free-observer-registry
+          path: ESPressio-Observable
+      - name: Check out ESPressio Persistence working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Persistence
+          ref: feature/10-platform-storage-abstractions
+          path: ESPressio-Persistence
+      - name: Check out ESPressio State working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-State
+          ref: feature/1-state-foundation
+          path: ESPressio-State
+      - name: Check out ESPressio Event working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Event
+          ref: feature/57-rtti-free-memory-efficiency
+          path: ESPressio-Event
+      - name: Check out ESPressio Command working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Command
+          ref: feature/30-async-command-routing
+          path: ESPressio-Command
+      - name: Check out ESPressio Threads working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Threads
+          ref: optimisation/69-resource-footprint
+          path: ESPressio-Threads
+      - name: Check out ESPressio Task working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: feature/1-task-execution
+          path: ESPressio-Task
+      - name: Check out ESPressio Timing working branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: feature/29-platform-clock-abstractions
+          path: ESPressio-Timing
+      - name: Check out ESPressio Units
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: main
+          path: ESPressio-Units
+      - name: Configure
+        run: cmake -S ESPressio-Web/tests -B build/tests
+      - name: Build
+        run: cmake --build build/tests --parallel
+      - name: Run
+        run: ctest --test-dir build/tests --output-on-failure
