@@ -16,61 +16,61 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-System
-          ref: main
+          ref: structural_realignment
           path: ESPressio-System
       - name: Check out ESPressio Observable working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Observable
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Observable
       - name: Check out ESPressio Persistence working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Persistence
       - name: Check out ESPressio State working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-State
-          ref: main
+          ref: structural_realignment
           path: ESPressio-State
       - name: Check out ESPressio Event working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Event
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Event
       - name: Check out ESPressio Command working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Command
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Command
       - name: Check out ESPressio Threads working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Threads
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Threads
       - name: Check out ESPressio Task working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Task
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Task
       - name: Check out ESPressio Timing working branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Timing
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Timing
       - name: Check out ESPressio Units
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Units
-          ref: main
+          ref: structural_realignment
           path: ESPressio-Units
       - name: Configure
         run: cmake -S ESPressio-Web/tests -B build/tests
