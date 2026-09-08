@@ -7,16 +7,40 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Underlying storage: 1 bytes
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 enum class WebTransportMode : uint8_t {
     Plain = 0,
     Tls
 };
 
+/**
+ * ESPressio Memory Audit
+ * Underlying storage: 1 bytes
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 enum class WebCredentialEncoding : uint8_t {
     Pem = 0,
     Der
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Data (uint8_t*): 4 bytes [0 bytes dynamic allocation]
+ * - Size (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - Encoding (WebCredentialEncoding): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct WebCredentialView final {
     const uint8_t* Data = nullptr;
     std::size_t Size = 0;
@@ -31,6 +55,13 @@ struct WebCredentialView final {
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Underlying storage: 1 bytes
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 enum class WebTlsServerTrustMode : uint8_t {
     // The concrete platform may use this only when its platform trust source
     // authenticates the peer. A native "TLS without verification" default is
@@ -42,6 +73,17 @@ enum class WebTlsServerTrustMode : uint8_t {
     CertificateAuthority
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - ServerTrust (WebTlsServerTrustMode): 1 bytes [0 bytes dynamic allocation]
+ * - ServerCertificateAuthority (WebCredentialView): 12 bytes [0 bytes dynamic allocation]
+ * - ClientCertificate (WebCredentialView): 12 bytes [0 bytes dynamic allocation]
+ * - ClientPrivateKey (WebCredentialView): 12 bytes [0 bytes dynamic allocation]
+ * Total Memory: 40 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct WebTlsConfiguration final {
     WebTlsServerTrustMode ServerTrust = WebTlsServerTrustMode::PlatformTrust;
     WebCredentialView ServerCertificateAuthority;

@@ -29,11 +29,25 @@ inline constexpr std::string_view Revision = "X-ESPressio-State-Revision";
 } // namespace StateHttpHeaderName
 
 namespace Detail {
+/**
+ * ESPressio Memory Audit
+ * Members: none (standalone empty object occupies 1 byte; an eligible empty base may be optimized to 0 bytes).
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 template<typename TDefinition, typename = void>
 struct HttpStateDefinitionName final {
     static constexpr const char* Value = nullptr;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members: none (standalone empty object occupies 1 byte; an eligible empty base may be optimized to 0 bytes).
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 template<typename TDefinition>
 struct HttpStateDefinitionName<
     TDefinition,
@@ -47,6 +61,13 @@ struct HttpStateDefinitionName<
 };
 } // namespace Detail
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 template<typename TDefinition>
 class IHttpStateSnapshotRepresentation {
 public:
@@ -60,6 +81,17 @@ public:
     ) = 0;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _payloadMutex (std::mutex): 4 bytes [native synchronization state may allocate platform resources lazily]
+ * - _payload (PayloadBuffer): 12 bytes [Capacity * (1 bytes) element storage]
+ * Total Memory: 20 bytes [_payloadMutex: native synchronization state may allocate platform resources lazily; _payload: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 template<typename TDefinition>
 class StateCodecHttpSnapshotRepresentation final :
     public IHttpStateSnapshotRepresentation<TDefinition> {
@@ -173,6 +205,18 @@ private:
     PayloadBuffer _payload;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _publisher (Publisher&): 4 bytes [0 bytes dynamic allocation]
+ * - _defaultRepresentation (StateCodecHttpSnapshotRepresentation<TDefinition>): 20 bytes [_payloadMutex: native synchronization state may allocate platform resources lazily; _payload: Capacity * (1 bytes) element storage]
+ * - _representation (IHttpStateSnapshotRepresentation<TDefinition>*): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 32 bytes [_defaultRepresentation: _payloadMutex: native synchronization state may allocate platform resources lazily; _defaultRepresentation: _payload: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 template<typename TContract, typename TDefinition>
 class StateSnapshotHttpHandler final : public IHttpRouteHandler {
 public:

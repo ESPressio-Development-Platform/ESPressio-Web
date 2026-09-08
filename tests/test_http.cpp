@@ -15,6 +15,22 @@ using namespace ESPressio::Web;
 
 namespace {
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - MethodValue (HttpMethod): 1 bytes [0 bytes dynamic allocation]
+ * - PathValue (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - QueryValue (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - Length (std::optional<std::size_t>): 8 bytes [0 bytes dynamic allocation]
+ * - Headers (std::unordered_map<std::string, std::string>): 28 bytes [BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - Body (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - BodyOffset (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 108 bytes [PathValue: Capacity + 1 bytes when capacity exceeds 15-byte SSO; QueryValue: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Body: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeRequest final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Get;
@@ -60,6 +76,22 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - StatusValue (HttpStatus): 2 bytes [0 bytes dynamic allocation]
+ * - Headers (std::unordered_map<std::string, std::string>): 28 bytes [BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - BegunLength (std::optional<std::size_t>): 8 bytes [0 bytes dynamic allocation]
+ * - Bytes (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - Begun (bool): 1 bytes [0 bytes dynamic allocation]
+ * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
+ * - Aborted (bool): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 60 bytes [Headers: BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Bytes: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeResponse final : public IHttpResponsePlatform {
 public:
     HttpStatus StatusValue = HttpStatus::Ok;
@@ -99,6 +131,19 @@ public:
     void Abort() noexcept override { Aborted = true; }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Dispatcher (IHttpRequestDispatcher*): 4 bytes [0 bytes dynamic allocation]
+ * - Config (HttpServerConfiguration): 20 bytes [0 bytes dynamic allocation]
+ * - Starts (int): 4 bytes [0 bytes dynamic allocation]
+ * - Stops (int): 4 bytes [0 bytes dynamic allocation]
+ * - CapabilityValue (WebCapabilities): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 40 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class FakeServerPlatform final : public IHttpServerPlatform {
 public:
     IHttpRequestDispatcher* Dispatcher = nullptr;
@@ -121,6 +166,15 @@ public:
     void Reset() noexcept override { Dispatcher = nullptr; }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Calls (int): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class EchoHandler final : public IHttpRequestHandler {
 public:
     int Calls = 0;
@@ -132,6 +186,16 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Server (HttpServer*): 4 bytes [0 bytes dynamic allocation]
+ * - Notifications (int): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class Observer final : public IHttpServerObserver {
 public:
     HttpServer* Server = nullptr;

@@ -13,6 +13,19 @@ using namespace ESPressio::Web;
 
 namespace {
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - MethodValue (HttpMethod): 1 bytes [0 bytes dynamic allocation]
+ * - Body (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - Offset (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - DeclaredLength (std::optional<std::size_t>): 8 bytes [0 bytes dynamic allocation]
+ * Total Memory: 32 bytes [Body: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class Request final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Post;
@@ -48,6 +61,17 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Status (HttpStatus): 2 bytes [0 bytes dynamic allocation]
+ * - Begun (bool): 1 bytes [0 bytes dynamic allocation]
+ * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class Response final : public IHttpResponsePlatform {
 public:
     HttpStatus Status = HttpStatus::Ok;
@@ -75,6 +99,18 @@ public:
     void Abort() noexcept override {}
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Transport (ESPressio::Event::IEventTransport*): 4 bytes [0 bytes dynamic allocation]
+ * - Packet (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - Calls (int): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 24 bytes [Packet: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class Receiver final : public ESPressio::Event::IEventTransportReceiver {
 public:
     ESPressio::Event::IEventTransport* Transport = nullptr;

@@ -18,10 +18,29 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _storage (Persistence::IFileStorage&): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class PersistenceWebResourceProvider final : public IWebResourceProvider {
 private:
     /// <summary>Adapts one Persistence sequential file stream to the Web resource stream contract.</summary>
-    class ResourceReadStream final : public IWebResourceReadStream {
+        /**
+     * ESPressio Memory Audit
+     * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+     * Members:
+     * - _stream (Persistence::FileReadStreamPtr): 12 bytes [owned object: 4 bytes]
+     * Total Memory: 16 bytes [_stream: owned object: 4 bytes]
+     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+     * End ESPressio Memory Audit
+     */
+class ResourceReadStream final : public IWebResourceReadStream {
     public:
         explicit ResourceReadStream(Persistence::FileReadStreamPtr stream)
             : _stream(std::move(stream)) {}

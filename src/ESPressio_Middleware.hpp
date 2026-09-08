@@ -12,6 +12,14 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Id (uint64_t): 8 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct MiddlewareHandle final {
     uint64_t Id = 0;
 
@@ -21,12 +29,26 @@ struct MiddlewareHandle final {
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IHttpMiddlewareNext {
 public:
     virtual ~IHttpMiddlewareNext() = default;
     virtual HttpHandlerResult Invoke(WebRequestContext& context) = 0;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IHttpMiddleware {
 public:
     virtual ~IHttpMiddleware() = default;
@@ -36,9 +58,30 @@ public:
     ) = 0;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _mutex (std::mutex): 4 bytes [native synchronization state may allocate platform resources lazily]
+ * - _chain (std::shared_ptr<Chain>): 8 bytes [shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; pointee: Entries: Capacity * (12 bytes) element storage]
+ * - _nextHandle (std::atomic<uint64_t>): 8 bytes [0 bytes dynamic allocation]
+ * Total Memory: 24 bytes [_mutex: native synchronization state may allocate platform resources lazily; _chain: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _chain: pointee: Entries: Capacity * (12 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class MiddlewarePipeline final : public IHttpRequestHandler {
 private:
-    struct Entry final {
+        /**
+     * ESPressio Memory Audit
+     * Members:
+     * - Handle (MiddlewareHandle): 8 bytes [0 bytes dynamic allocation]
+     * - Middleware (IHttpMiddleware*): 4 bytes [0 bytes dynamic allocation]
+     * Total Memory: 12 bytes [0 bytes dynamic allocation]
+     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+     * End ESPressio Memory Audit
+     */
+struct Entry final {
         MiddlewareHandle Handle;
         IHttpMiddleware* Middleware = nullptr;
     };
@@ -48,7 +91,17 @@ private:
         System::Memory::MemoryPolicy::ExternalPreferred
     >;
 
-    struct Chain final {
+        /**
+     * ESPressio Memory Audit
+     * Members:
+     * - Entries (EntryList): 12 bytes [Capacity * (12 bytes) element storage]
+     * - Terminal (IHttpRequestHandler*): 4 bytes [0 bytes dynamic allocation]
+     * Total Memory: 16 bytes [Entries: Capacity * (12 bytes) element storage]
+     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+     * End ESPressio Memory Audit
+     */
+struct Chain final {
         EntryList Entries;
         IHttpRequestHandler* Terminal = nullptr;
 
@@ -56,9 +109,29 @@ private:
         Chain(const Chain& other) : Entries(other.Entries), Terminal(other.Terminal) {}
     };
 
-    class Invocation final {
+        /**
+     * ESPressio Memory Audit
+     * Members:
+     * - _chain (std::shared_ptr<Chain>): 8 bytes [shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; pointee: Entries: Capacity * (12 bytes) element storage]
+     * Total Memory: 12 bytes [_chain: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 16 bytes; _chain: pointee: Entries: Capacity * (12 bytes) element storage]
+     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+     * End ESPressio Memory Audit
+     */
+class Invocation final {
     private:
-        class Next final : public IHttpMiddlewareNext {
+                /**
+         * ESPressio Memory Audit
+         * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+         * Members:
+         * - _invocation (Invocation&): 4 bytes [0 bytes dynamic allocation]
+         * - _nextIndex (std::size_t): 4 bytes [0 bytes dynamic allocation]
+         * - _invoked (bool): 1 bytes [0 bytes dynamic allocation]
+         * Total Memory: 16 bytes [0 bytes dynamic allocation]
+         * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+         * End ESPressio Memory Audit
+         */
+class Next final : public IHttpMiddlewareNext {
         public:
             Next(Invocation& invocation, std::size_t nextIndex)
                 : _invocation(invocation), _nextIndex(nextIndex) {}

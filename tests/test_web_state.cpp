@@ -15,6 +15,13 @@ using namespace ESPressio::Web;
 
 namespace {
 
+/**
+ * ESPressio Memory Audit
+ * Members: none (standalone empty object occupies 1 byte; an eligible empty base may be optimized to 0 bytes).
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct CounterState {
     using Value = uint32_t;
     static constexpr ESPressio::State::StateTypeId Id = 7;
@@ -23,6 +30,15 @@ struct CounterState {
 
 using Contract = ESPressio::State::StateContract<CounterState>;
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - MethodValue (HttpMethod): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class Request final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Get;
@@ -47,6 +63,20 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Status (HttpStatus): 2 bytes [0 bytes dynamic allocation]
+ * - Headers (std::unordered_map<std::string, std::string>): 28 bytes [BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - Length (std::optional<std::size_t>): 8 bytes [0 bytes dynamic allocation]
+ * - Body (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 60 bytes [Headers: BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Body: Capacity * (1 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class Response final : public IHttpResponsePlatform {
 public:
     HttpStatus Status = HttpStatus::Ok;

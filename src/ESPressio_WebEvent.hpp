@@ -18,11 +18,32 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - MaximumPacketBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - ReadChunkBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct HttpEventIngressConfiguration final {
     std::size_t MaximumPacketBytes = 64u * 1024u;
     std::size_t ReadChunkBytes = 1024;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 8 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _mutex (std::mutex): 4 bytes [native synchronization state may allocate platform resources lazily]
+ * - _configuration (HttpEventIngressConfiguration): 8 bytes [0 bytes dynamic allocation]
+ * - _receiver (Event::IEventTransportReceiver*): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 24 bytes [_mutex: native synchronization state may allocate platform resources lazily]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class HttpEventIngress final :
     public Event::IEventTransport,
     public IHttpRouteHandler {

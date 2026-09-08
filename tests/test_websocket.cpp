@@ -11,6 +11,21 @@ using namespace ESPressio::Web;
 
 namespace {
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - LastBinary (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - LastText (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - LastCloseCode (uint16_t): 2 bytes [0 bytes dynamic allocation]
+ * - LastCloseReason (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - _id (WebSocketConnectionId): 8 bytes [0 bytes dynamic allocation]
+ * - _open (bool): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 80 bytes [LastBinary: Capacity * (1 bytes) element storage; LastText: Capacity + 1 bytes when capacity exceeds 15-byte SSO; LastCloseReason: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeConnection final : public IWebSocketConnection {
 public:
     explicit FakeConnection(WebSocketConnectionId id) : _id(id) {}
@@ -47,6 +62,28 @@ private:
     bool _open = true;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Sink (IWebSocketEndpointPlatformSink*): 4 bytes [0 bytes dynamic allocation]
+ * - Bound (bool): 1 bytes [0 bytes dynamic allocation]
+ * - Count (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - BindCalls (int): 4 bytes [0 bytes dynamic allocation]
+ * - UnbindCalls (int): 4 bytes [0 bytes dynamic allocation]
+ * - BinaryBroadcasts (int): 4 bytes [0 bytes dynamic allocation]
+ * - TextBroadcasts (int): 4 bytes [0 bytes dynamic allocation]
+ * - CloseAllCalls (int): 4 bytes [0 bytes dynamic allocation]
+ * - LastCloseCode (uint16_t): 2 bytes [0 bytes dynamic allocation]
+ * - LastPath (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - LastProtocol (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - LastBinary (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - LastText (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Total Memory: 124 bytes [LastPath: Capacity + 1 bytes when capacity exceeds 15-byte SSO; LastProtocol: Capacity + 1 bytes when capacity exceeds 15-byte SSO; LastBinary: Capacity * (1 bytes) element storage; LastText: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeEndpointPlatform final : public IWebSocketEndpointPlatform {
 public:
     void SetSink(IWebSocketEndpointPlatformSink* sink) override { Sink = sink; }
@@ -120,6 +157,23 @@ public:
     std::string LastText;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Connected (int): 4 bytes [0 bytes dynamic allocation]
+ * - Binary (int): 4 bytes [0 bytes dynamic allocation]
+ * - Text (int): 4 bytes [0 bytes dynamic allocation]
+ * - Disconnected (int): 4 bytes [0 bytes dynamic allocation]
+ * - LastConnection (WebSocketConnectionId): 8 bytes [0 bytes dynamic allocation]
+ * - LastCloseCode (uint16_t): 2 bytes [0 bytes dynamic allocation]
+ * - LastBinary (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - LastText (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Total Memory: 68 bytes [LastBinary: Capacity * (1 bytes) element storage; LastText: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class EndpointObserver final : public IWebSocketEndpointObserver {
 public:
     void OnWebSocketConnected(IWebSocketConnection& connection) override {
@@ -162,6 +216,16 @@ public:
     std::string LastText;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Headers (std::vector<WebClientHeader>): 12 bytes [Capacity * (16 bytes) element storage]
+ * Total Memory: 16 bytes [Headers: Capacity * (16 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeHeaderSource final : public IWebClientHeaderSource {
 public:
     std::size_t Count() const noexcept override { return Headers.size(); }
@@ -175,6 +239,23 @@ public:
     std::vector<WebClientHeader> Headers;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Sink (IWebSocketClientPlatformSink*): 4 bytes [0 bytes dynamic allocation]
+ * - Connected (bool): 1 bytes [0 bytes dynamic allocation]
+ * - ConnectCalls (int): 4 bytes [0 bytes dynamic allocation]
+ * - LastPort (uint16_t): 2 bytes [0 bytes dynamic allocation]
+ * - LastTransport (WebTransportMode): 1 bytes [0 bytes dynamic allocation]
+ * - LastHost (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - LastPath (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - _connection (FakeConnection&): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 72 bytes [LastHost: Capacity + 1 bytes when capacity exceeds 15-byte SSO; LastPath: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeClientPlatform final : public IWebSocketClientPlatform {
 public:
     explicit FakeClientPlatform(FakeConnection& connection) : _connection(connection) {}
@@ -221,6 +302,23 @@ private:
     FakeConnection& _connection;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Connected (int): 4 bytes [0 bytes dynamic allocation]
+ * - Binary (int): 4 bytes [0 bytes dynamic allocation]
+ * - Text (int): 4 bytes [0 bytes dynamic allocation]
+ * - Disconnected (int): 4 bytes [0 bytes dynamic allocation]
+ * - LastConnection (WebSocketConnectionId): 8 bytes [0 bytes dynamic allocation]
+ * - LastCloseCode (uint16_t): 2 bytes [0 bytes dynamic allocation]
+ * - LastBinary (std::vector<uint8_t>): 12 bytes [Capacity * (1 bytes) element storage]
+ * - LastText (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Total Memory: 68 bytes [LastBinary: Capacity * (1 bytes) element storage; LastText: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class ClientObserver final : public IWebSocketClientObserver {
 public:
     void OnWebSocketClientConnected(IWebSocketConnection& connection) override {

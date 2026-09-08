@@ -11,6 +11,13 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IHttpErrorResponder {
 public:
     virtual ~IHttpErrorResponder() = default;
@@ -44,6 +51,14 @@ inline std::string_view DefaultHttpErrorBody(WebError error) noexcept {
     }
 }
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class DefaultHttpErrorResponder final : public IHttpErrorResponder {
 public:
     HttpHandlerResult Respond(WebRequestContext& context, WebError error) override {
@@ -56,9 +71,36 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _provider (IWebResourceProvider&): 4 bytes [0 bytes dynamic allocation]
+ * - _defaultFallback (DefaultHttpErrorResponder): 4 bytes [0 bytes dynamic allocation]
+ * - _fallback (IHttpErrorResponder*): 4 bytes [0 bytes dynamic allocation]
+ * - _defaultContentTypeResolver (DefaultHttpContentTypeResolver): 4 bytes [0 bytes dynamic allocation]
+ * - _contentTypeResolver (IHttpContentTypeResolver*): 4 bytes [0 bytes dynamic allocation]
+ * - _resourceConfiguration (ResourceResponseConfiguration): 4 bytes [0 bytes dynamic allocation]
+ * - _mappings (std::array<Mapping, ErrorCount>): 364 bytes [13 elements each: Path: _value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Total Memory: 392 bytes [_mappings: 13 elements each: Path: _value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class ResourceHttpErrorResponder final : public IHttpErrorResponder {
 private:
-    struct Mapping final {
+        /**
+     * ESPressio Memory Audit
+     * Members:
+     * - Configured (bool): 1 bytes [0 bytes dynamic allocation]
+     * - Status (HttpStatus): 2 bytes [0 bytes dynamic allocation]
+     * - Path (System::Memory::String<System::Memory::MemoryPolicy::ExternalPreferred>): 24 bytes [_value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+     * Total Memory: 28 bytes [Path: _value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+     * End ESPressio Memory Audit
+     */
+struct Mapping final {
         bool Configured = false;
         HttpStatus Status = HttpStatus::InternalServerError;
         System::Memory::String<System::Memory::MemoryPolicy::ExternalPreferred> Path;
@@ -142,6 +184,18 @@ private:
     std::array<Mapping, ErrorCount> _mappings{};
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _primary (std::atomic<IHttpRequestHandler*>): 4 bytes [0 bytes dynamic allocation]
+ * - _fallback (std::atomic<IHttpRequestHandler*>): 4 bytes [0 bytes dynamic allocation]
+ * - _defaultErrorResponder (DefaultHttpErrorResponder): 4 bytes [0 bytes dynamic allocation]
+ * - _errorResponder (std::atomic<IHttpErrorResponder*>): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 20 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class HttpApplication final : public IHttpRequestHandler {
 public:
     HttpApplication(

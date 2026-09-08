@@ -11,6 +11,17 @@ using namespace ESPressio::Web;
 
 namespace {
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - Path (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - Data (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Total Memory: 52 bytes [Path: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Data: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class FakeFileStorage final : public Persistence::IFileStorage {
 public:
     std::string Path = "/index.html";

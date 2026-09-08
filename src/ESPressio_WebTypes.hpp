@@ -6,6 +6,13 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Underlying storage: 1 bytes
+ * Total Memory: 1 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 enum class WebError : uint8_t {
     None = 0,
     InvalidConfiguration,
@@ -23,6 +30,15 @@ enum class WebError : uint8_t {
     Count
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Error (WebError): 1 bytes [0 bytes dynamic allocation]
+ * - PlatformCode (int32_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 8 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct WebResult final {
     WebError Error = WebError::None;
     int32_t PlatformCode = 0;
@@ -36,6 +52,13 @@ struct WebResult final {
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Underlying storage: 4 bytes
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 enum class WebCapability : uint32_t {
     None = 0,
     Http = 1u << 0,

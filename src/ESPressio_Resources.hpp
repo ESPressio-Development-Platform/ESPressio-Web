@@ -12,11 +12,29 @@
 
 namespace ESPressio::Web {
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Size (uint64_t): 8 bytes [0 bytes dynamic allocation]
+ * - IsDirectory (bool): 1 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct WebResourceMetadata final {
     uint64_t Size = 0;
     bool IsDirectory = false;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Result (WebResult): 8 bytes [0 bytes dynamic allocation]
+ * - BytesRead (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct WebResourceReadResult final {
     WebResult Result;
     std::size_t BytesRead = 0;
@@ -25,6 +43,13 @@ struct WebResourceReadResult final {
 };
 
 /// <summary>Provides sequential reads from one already-open Web resource.</summary>
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IWebResourceReadStream {
 public:
     virtual ~IWebResourceReadStream() = default;
@@ -43,6 +68,13 @@ public:
 using WebResourceReadStreamPtr =
     System::Memory::PolymorphicUniquePtr<IWebResourceReadStream>;
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IWebResourceProvider {
 public:
     virtual ~IWebResourceProvider() = default;
@@ -66,12 +98,27 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class IHttpContentTypeResolver {
 public:
     virtual ~IHttpContentTypeResolver() = default;
     virtual std::string_view Resolve(std::string_view path) const noexcept = 0;
 };
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members: none; polymorphic/virtual-base object metadata is included in the total.
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class DefaultHttpContentTypeResolver final : public IHttpContentTypeResolver {
 public:
     std::string_view Resolve(std::string_view path) const noexcept override {
@@ -98,6 +145,14 @@ public:
     }
 };
 
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - ReadChunkBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 4 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct ResourceResponseConfiguration final {
     std::size_t ReadChunkBytes = 1024;
 };
@@ -201,6 +256,18 @@ inline WebResult WriteWebResourceResponse(
 
 using StaticResourceConfiguration = ResourceResponseConfiguration;
 
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _provider (IWebResourceProvider&): 4 bytes [0 bytes dynamic allocation]
+ * - _defaultContentTypeResolver (DefaultHttpContentTypeResolver): 4 bytes [0 bytes dynamic allocation]
+ * - _contentTypeResolver (IHttpContentTypeResolver*): 4 bytes [0 bytes dynamic allocation]
+ * - _configuration (StaticResourceConfiguration): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 20 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 class StaticResourceHandler final : public IHttpRequestHandler {
 public:
     explicit StaticResourceHandler(
