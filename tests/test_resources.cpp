@@ -155,17 +155,17 @@ public:
  */
 class SequentialMemoryResources final : public IWebResourceProvider {
 private:
-        /**
-     * ESPressio Memory Audit
-     * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
-     * Members:
-     * - _data (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
-     * - _offset (std::size_t): 4 bytes [0 bytes dynamic allocation]
-     * Total Memory: 32 bytes [_data: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
+ * Members:
+ * - _data (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - _offset (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 32 bytes [_data: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 class ReadStream final : public IWebResourceReadStream {
     public:
         explicit ReadStream(std::string data)

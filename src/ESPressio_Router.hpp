@@ -118,20 +118,20 @@ public:
  */
 class Router final : public IHttpRequestHandler {
 private:
-        /**
-     * ESPressio Memory Audit
-     * Members:
-     * - Handle (RouteHandle): 8 bytes [0 bytes dynamic allocation]
-     * - Method (HttpMethod): 1 bytes [0 bytes dynamic allocation]
-     * - Pattern (System::Memory::String<System::Memory::MemoryPolicy::ExternalPreferred>): 24 bytes [_value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
-     * - Handler (IHttpRouteHandler*): 4 bytes [0 bytes dynamic allocation]
-     * - NamedParameterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
-     * - LiteralCharacterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
-     * Total Memory: 48 bytes [Pattern: _value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Handle (RouteHandle): 8 bytes [0 bytes dynamic allocation]
+ * - Method (HttpMethod): 1 bytes [0 bytes dynamic allocation]
+ * - Pattern (System::Memory::String<System::Memory::MemoryPolicy::ExternalPreferred>): 24 bytes [_value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * - Handler (IHttpRouteHandler*): 4 bytes [0 bytes dynamic allocation]
+ * - NamedParameterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - LiteralCharacterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 48 bytes [Pattern: _value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 struct RouteEntry final {
         RouteHandle Handle;
         HttpMethod Method = HttpMethod::Any;
@@ -155,16 +155,16 @@ struct RouteEntry final {
             LiteralCharacterCount(literalCharacterCount) {}
     };
 
-        /**
-     * ESPressio Memory Audit
-     * Members:
-     * - Valid (bool): 1 bytes [0 bytes dynamic allocation]
-     * - NamedParameterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
-     * - LiteralCharacterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
-     * Total Memory: 12 bytes [0 bytes dynamic allocation]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Valid (bool): 1 bytes [0 bytes dynamic allocation]
+ * - NamedParameterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * - LiteralCharacterCount (std::size_t): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct PatternAnalysis final {
         bool Valid = false;
         std::size_t NamedParameterCount = 0;

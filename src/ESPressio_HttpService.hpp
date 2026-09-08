@@ -62,15 +62,15 @@ class HttpService final :
     public IHttpRequestHandler,
     public IHttpRouteHandler {
 private:
-        /**
-     * ESPressio Memory Audit
-     * Members:
-     * - Handle (HttpProviderHandle): 8 bytes [0 bytes dynamic allocation]
-     * - Provider (IHttpServiceProvider*): 4 bytes [0 bytes dynamic allocation]
-     * Total Memory: 12 bytes [0 bytes dynamic allocation]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Handle (HttpProviderHandle): 8 bytes [0 bytes dynamic allocation]
+ * - Provider (IHttpServiceProvider*): 4 bytes [0 bytes dynamic allocation]
+ * Total Memory: 12 bytes [0 bytes dynamic allocation]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * End ESPressio Memory Audit
+ */
 struct Entry final {
         HttpProviderHandle Handle;
         IHttpServiceProvider* Provider = nullptr;
@@ -81,15 +81,15 @@ struct Entry final {
         System::Memory::MemoryPolicy::ExternalPreferred
     >;
 
-        /**
-     * ESPressio Memory Audit
-     * Members:
-     * - Entries (EntryList): 12 bytes [Capacity * (12 bytes) element storage]
-     * Total Memory: 12 bytes [Entries: Capacity * (12 bytes) element storage]
-     * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
-     * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
-     * End ESPressio Memory Audit
-     */
+/**
+ * ESPressio Memory Audit
+ * Members:
+ * - Entries (EntryList): 12 bytes [Capacity * (12 bytes) element storage]
+ * Total Memory: 12 bytes [Entries: Capacity * (12 bytes) element storage]
+ * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
+ * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
+ * End ESPressio Memory Audit
+ */
 struct ProviderSet final {
         EntryList Entries;
         ProviderSet() = default;
