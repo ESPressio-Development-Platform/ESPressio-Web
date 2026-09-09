@@ -18,41 +18,41 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-System
           ref: structural_realignment
           path: ESPressio-System
-      - name: Check out ESPressio Observable working branch
+      - name: Check out ESPressio Observable primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Observable
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Observable
-      - name: Check out ESPressio Persistence working branch
+      - name: Check out ESPressio Persistence primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Persistence
-      - name: Check out ESPressio State working branch
+      - name: Check out ESPressio State primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-State
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-State
-      - name: Check out ESPressio Event working branch
+      - name: Check out ESPressio Event primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Event
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Event
-      - name: Check out ESPressio Command working branch
+      - name: Check out ESPressio Command primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Command
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Command
-      - name: Check out ESPressio Threads working branch
+      - name: Check out ESPressio Threads primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Threads
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Threads
       - name: Check out ESPressio Task working branch
         uses: actions/checkout@v4
@@ -60,17 +60,17 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Task
           ref: structural_realignment
           path: ESPressio-Task
-      - name: Check out ESPressio Timing working branch
+      - name: Check out ESPressio Timing primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Timing
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Timing
-      - name: Check out ESPressio Units
+      - name: Check out ESPressio Units primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Units
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-Units
       - name: Configure
         run: cmake -S ESPressio-Web/tests -B build/tests
