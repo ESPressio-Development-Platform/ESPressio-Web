@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check out ESPressio ESP32 working branch
+      - name: Check out ESPressio ESP32 primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-ESP32
-          ref: structural_realignment
+          ref: primitives_redesign
           path: ESPressio-ESP32
       - uses: actions/setup-python@v5
         with:
