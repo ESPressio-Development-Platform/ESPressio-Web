@@ -121,7 +121,6 @@ Memory-pass results:
 
 `WebSocketEndpointConfiguration` carries application-selected `Path` and optional `Protocol`; `IWebSocketEndpointPlatform` exposes Bind/Unbind/IsBound. Host tests validate binding lifecycle, application path/protocol propagation, observer behavior and broadcasts.
 
-`PLATFORM_ABSTRACTIONS.md` defines durable connection lifetime, synchronous borrowed inbound payloads, async outbound ownership, pre-start binding requirements and safe unbind behavior for native stacks with fixed handler precedence.
 
 ### WebSocket client security/policy (#23)
 
@@ -211,7 +210,6 @@ Examples remain split by audience:
 - `examples/Implementors/MinimalHttpPlatform/main.cpp` demonstrates a pedagogical native request/response/server implementation and the synchronous Web dispatcher boundary. It is a host-CI executable under `-Wall -Wextra -Wpedantic -Werror`; run `33163484385` succeeded.
 - `examples/ESP32/HttpAndWebSocket/main.cpp` demonstrates application consumption of the concrete ESP32 HTTP/WebSocket server providers with application-selected routes. Provider CI compiles the real example.
 
-README and `PLATFORM_ABSTRACTIONS.md` now document the two extension surfaces, provider ownership, response framing, WebSocket lifetime/move semantics, setup-time leaf configuration, explicit client TLS trust/identity/policy semantics, and the IDF-4.4 non-fragmented-inbound limitation.
 
 ## Memory/threading audit status
 
