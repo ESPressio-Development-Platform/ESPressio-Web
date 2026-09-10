@@ -11,14 +11,7 @@ using namespace ESPressio::Web;
 
 namespace {
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Request final : public IHttpRequestPlatform {
 public:
     HttpMethod Method() const noexcept override { return HttpMethod::Get; }
@@ -36,18 +29,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Body (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - Begun (bool): 1 bytes [0 bytes dynamic allocation]
- * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 32 bytes [Body: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Response final : public IHttpResponsePlatform {
 public:
     std::string Body;
@@ -65,15 +47,7 @@ public:
     void Abort() noexcept override {}
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Calls (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 8 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Terminal final : public IHttpRequestHandler {
 public:
     int Calls = 0;
@@ -83,16 +57,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Trace (std::string*): 4 bytes [0 bytes dynamic allocation]
- * - Marker (char): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class RecordingMiddleware final : public IHttpMiddleware {
 public:
     std::string* Trace = nullptr;
@@ -106,15 +71,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Calls (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 8 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class ShortCircuitMiddleware final : public IHttpMiddleware {
 public:
     int Calls = 0;
@@ -124,17 +81,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Pipeline (MiddlewarePipeline*): 4 bytes [0 bytes dynamic allocation]
- * - HandleValue (MiddlewareHandle): 8 bytes [0 bytes dynamic allocation]
- * - Calls (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 20 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class SelfRemovingMiddleware final : public IHttpMiddleware {
 public:
     MiddlewarePipeline* Pipeline = nullptr;
@@ -149,15 +96,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - SecondResult (HttpHandlerResult): 12 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class DoubleNextMiddleware final : public IHttpMiddleware {
 public:
     HttpHandlerResult SecondResult = HttpHandlerResult::NotHandled();

@@ -11,18 +11,7 @@ using namespace ESPressio::Web;
 
 // This example deliberately uses tiny made-up native types. Replace these with
 // the request/server primitives offered by the architecture being onboarded.
-/**
- * ESPressio Memory Audit
- * Members:
- * - Method (HttpMethod): 1 bytes [0 bytes dynamic allocation]
- * - Path (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Query (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Body (uint8_t*): 4 bytes [0 bytes dynamic allocation]
- * - BodyBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 28 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct NativeRequest final {
     HttpMethod Method = HttpMethod::Get;
     std::string_view Path = "/";
@@ -31,16 +20,7 @@ struct NativeRequest final {
     std::size_t BodyBytes = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - _request (NativeRequest&): 4 bytes [0 bytes dynamic allocation]
- * - _offset (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class ExampleRequestPlatform final : public IHttpRequestPlatform {
 public:
     explicit ExampleRequestPlatform(NativeRequest& request) : _request(request) {}
@@ -94,19 +74,7 @@ private:
     std::size_t _offset = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - _status (HttpStatus): 2 bytes [0 bytes dynamic allocation]
- * - _begun (bool): 1 bytes [0 bytes dynamic allocation]
- * - _completed (bool): 1 bytes [0 bytes dynamic allocation]
- * - _expected (std::optional<std::size_t>): 8 bytes [0 bytes dynamic allocation]
- * - _written (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 20 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class ExampleResponsePlatform final : public IHttpResponsePlatform {
 public:
     WebResult SetStatus(HttpStatus status) override {
@@ -162,17 +130,7 @@ private:
     std::size_t _written = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - _configuration (HttpServerConfiguration): 20 bytes [0 bytes dynamic allocation]
- * - _dispatcher (IHttpRequestDispatcher*): 4 bytes [0 bytes dynamic allocation]
- * - _running (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 32 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class ExampleHttpServerPlatform final : public IHttpServerPlatform {
 public:
     WebCapabilities Capabilities() const noexcept override {
@@ -226,14 +184,7 @@ private:
     bool _running = false;
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class HelloHandler final : public IHttpRequestHandler {
 public:
     HttpHandlerResult Handle(WebRequestContext& context) override {

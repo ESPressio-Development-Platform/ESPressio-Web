@@ -11,18 +11,7 @@ using namespace ESPressio::Web;
 
 namespace {
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - NameValue (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - TypeValue (DnsRecordType): 2 bytes [0 bytes dynamic allocation]
- * - ClassValue (DnsRecordClass): 2 bytes [0 bytes dynamic allocation]
- * Total Memory: 32 bytes [NameValue: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Request final : public IDnsRequestPlatform {
 public:
     std::string NameValue = "example.test";
@@ -34,20 +23,7 @@ public:
     DnsRecordClass Class() const noexcept override { return ClassValue; }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - CodeValue (DnsResponseCode): 1 bytes [0 bytes dynamic allocation]
- * - Addresses (std::vector<DnsAddress>): 12 bytes [Capacity * (17 bytes) element storage]
- * - Ttls (std::vector<uint32_t>): 12 bytes [Capacity * (4 bytes) element storage]
- * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
- * - Aborted (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 36 bytes [Addresses: Capacity * (17 bytes) element storage; Ttls: Capacity * (4 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Response final : public IDnsResponsePlatform {
 public:
     DnsResponseCode CodeValue = DnsResponseCode::NoError;
@@ -75,19 +51,7 @@ public:
     void Abort() noexcept override { Aborted = true; }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - CapabilityValue (WebCapabilities): 4 bytes [0 bytes dynamic allocation]
- * - Dispatcher (IDnsRequestDispatcher*): 4 bytes [0 bytes dynamic allocation]
- * - Configuration (DnsServerConfiguration): 8 bytes [0 bytes dynamic allocation]
- * - Starts (int): 4 bytes [0 bytes dynamic allocation]
- * - Stops (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 28 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Platform final : public IDnsServerPlatform {
 public:
     WebCapabilities CapabilityValue = ToCapabilities(WebCapability::Dns);
@@ -110,16 +74,7 @@ public:
     void Reset() noexcept override { Dispatcher = nullptr; }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Server (DnsServer*): 4 bytes [0 bytes dynamic allocation]
- * - Notifications (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class Observer final : public IDnsServerObserver {
 public:
     DnsServer* Server = nullptr;

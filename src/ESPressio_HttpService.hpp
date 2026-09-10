@@ -12,14 +12,7 @@
 
 namespace ESPressio::Web {
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Id (uint64_t): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 8 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct HttpProviderHandle final {
     uint64_t Id = 0;
 
@@ -29,13 +22,7 @@ struct HttpProviderHandle final {
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IHttpServiceProvider {
 public:
     virtual ~IHttpServiceProvider() = default;
@@ -46,31 +33,12 @@ public:
     virtual HttpHandlerResult Handle(WebRequestContext& context) = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 8 bytes [0 bytes dynamic allocation]
- * Members:
- * - _mutex (std::mutex): 4 bytes [native synchronization state may allocate platform resources lazily]
- * - _providers (std::shared_ptr<ProviderSet>): 8 bytes [shared control block (~12+ bytes; allocate_shared may co-locate object) + object 12 bytes; pointee: Entries: Capacity * (12 bytes) element storage]
- * - _nextHandle (std::atomic<uint64_t>): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 28 bytes [_mutex: native synchronization state may allocate platform resources lazily; _providers: shared control block (~12+ bytes; allocate_shared may co-locate object) + object 12 bytes; _providers: pointee: Entries: Capacity * (12 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class HttpService final :
     public IHttpRequestHandler,
     public IHttpRouteHandler {
 private:
-/**
- * ESPressio Memory Audit
- * Members:
- * - Handle (HttpProviderHandle): 8 bytes [0 bytes dynamic allocation]
- * - Provider (IHttpServiceProvider*): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct Entry final {
         HttpProviderHandle Handle;
         IHttpServiceProvider* Provider = nullptr;
@@ -81,15 +49,7 @@ struct Entry final {
         System::Memory::MemoryPolicy::ExternalPreferred
     >;
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Entries (EntryList): 12 bytes [Capacity * (12 bytes) element storage]
- * Total Memory: 12 bytes [Entries: Capacity * (12 bytes) element storage]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 struct ProviderSet final {
         EntryList Entries;
         ProviderSet() = default;

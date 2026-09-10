@@ -9,13 +9,7 @@
 
 namespace ESPressio::Web {
 
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class WebSocketFrameType : uint8_t {
     Text = 0,
     Binary,
@@ -25,13 +19,7 @@ enum class WebSocketFrameType : uint8_t {
 };
 
 /// <summary>Describes the lifecycle state of a server-side WebSocket endpoint.</summary>
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class WebSocketEndpointState : uint8_t {
     Detached = 0,
     Attached,
@@ -41,13 +29,7 @@ enum class WebSocketEndpointState : uint8_t {
 };
 
 /// <summary>Describes the lifecycle state of a WebSocket client.</summary>
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class WebSocketClientState : uint8_t {
     Detached = 0,
     Attached,
@@ -58,13 +40,7 @@ enum class WebSocketClientState : uint8_t {
 };
 
 /// <summary>Identifies a diagnostic activity emitted by a WebSocket platform implementation.</summary>
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class WebSocketActivityKind : uint8_t {
     BindRequested = 0,
     Bound,
@@ -91,35 +67,14 @@ enum class WebSocketActivityKind : uint8_t {
     ProtocolError
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Code (uint16_t): 2 bytes [0 bytes dynamic allocation]
- * - Reason (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebSocketCloseReason final {
     uint16_t Code = 1000;
     std::string_view Reason;
 };
 
 /// <summary>Portable metadata describing an implementation-level WebSocket activity.</summary>
-/**
- * ESPressio Memory Audit
- * Members:
- * - Kind (WebSocketActivityKind): 1 bytes [0 bytes dynamic allocation]
- * - ConnectionId (WebSocketConnectionId): 8 bytes [0 bytes dynamic allocation]
- * - FrameType (WebSocketFrameType): 1 bytes [0 bytes dynamic allocation]
- * - PayloadBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - Result (WebResult): 8 bytes [0 bytes dynamic allocation]
- * - CloseCode (uint16_t): 2 bytes [0 bytes dynamic allocation]
- * - Detail (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 40 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebSocketActivity final {
     WebSocketActivityKind Kind = WebSocketActivityKind::ProtocolError;
     WebSocketConnectionId ConnectionId = 0;
@@ -130,41 +85,19 @@ struct WebSocketActivity final {
     std::string_view Detail;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Path (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Protocol (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebSocketEndpointConfiguration final {
     std::string_view Path;
     std::string_view Protocol;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Name (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Value (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebClientHeader final {
     std::string_view Name;
     std::string_view Value;
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebClientHeaderSource {
 public:
     virtual ~IWebClientHeaderSource() = default;
@@ -172,24 +105,7 @@ public:
     virtual bool Header(std::size_t index, WebClientHeader& header) const noexcept = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - NetworkTimeoutMilliseconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - AutomaticReconnect (bool): 1 bytes [0 bytes dynamic allocation]
- * - ReconnectDelayMilliseconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - ReconnectAfterCleanClose (bool): 1 bytes [0 bytes dynamic allocation]
- * - PingIntervalMilliseconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - PongTimeoutMilliseconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - TcpKeepAlive (bool): 1 bytes [0 bytes dynamic allocation]
- * - TcpKeepAliveIdleSeconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - TcpKeepAliveIntervalSeconds (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - TcpKeepAliveProbeCount (uint32_t): 4 bytes [0 bytes dynamic allocation]
- * - MaximumHandshakeHeaderBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 44 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebSocketClientConnectionPolicy final {
     uint32_t NetworkTimeoutMilliseconds = 10000;
 
@@ -214,21 +130,7 @@ struct WebSocketClientConnectionPolicy final {
     std::size_t MaximumHandshakeHeaderBytes = 4096;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Host (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Port (uint16_t): 2 bytes [0 bytes dynamic allocation]
- * - Path (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Protocol (std::string_view): 8 bytes [0 bytes dynamic allocation]
- * - Transport (WebTransportMode): 1 bytes [0 bytes dynamic allocation]
- * - Tls (WebTlsConfiguration): 40 bytes [0 bytes dynamic allocation]
- * - Headers (IWebClientHeaderSource*): 4 bytes [0 bytes dynamic allocation]
- * - Policy (WebSocketClientConnectionPolicy): 44 bytes [0 bytes dynamic allocation]
- * Total Memory: 120 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct WebSocketClientConfiguration final {
     std::string_view Host;
     uint16_t Port = 0;
@@ -240,13 +142,7 @@ struct WebSocketClientConfiguration final {
     WebSocketClientConnectionPolicy Policy;
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebSocketConnection {
 public:
     virtual ~IWebSocketConnection() = default;
@@ -257,13 +153,7 @@ public:
     virtual WebResult Close(const WebSocketCloseReason& reason = {}) = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebSocketEndpointPlatformSink {
 public:
     virtual ~IWebSocketEndpointPlatformSink() = default;
@@ -275,13 +165,7 @@ public:
     virtual void OnPlatformWebSocketActivity(const WebSocketActivity&) {}
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebSocketEndpointPlatform {
 public:
     virtual ~IWebSocketEndpointPlatform() = default;
@@ -295,13 +179,7 @@ public:
     virtual WebResult CloseAll(const WebSocketCloseReason& reason = {}) = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebSocketClientPlatformSink {
 public:
     virtual ~IWebSocketClientPlatformSink() = default;
@@ -313,13 +191,7 @@ public:
     virtual void OnPlatformWebSocketClientActivity(const WebSocketActivity&) {}
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IWebSocketClientPlatform {
 public:
     virtual ~IWebSocketClientPlatform() = default;

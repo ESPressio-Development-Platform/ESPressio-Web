@@ -9,13 +9,7 @@
 
 namespace ESPressio::Web {
 
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class HttpMethod : uint8_t {
     Get = 0,
     Head,
@@ -29,13 +23,7 @@ enum class HttpMethod : uint8_t {
     Any
 };
 
-/**
- * ESPressio Memory Audit
- * Underlying storage: 2 bytes
- * Total Memory: 2 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class HttpStatus : uint16_t {
     Continue = 100,
     SwitchingProtocols = 101,
@@ -94,25 +82,13 @@ inline constexpr std::string_view UserAgent = "User-Agent";
 inline constexpr std::string_view Vary = "Vary";
 } // namespace HttpHeaderName
 
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class HttpTransportMode : uint8_t {
     Plain = 0,
     Tls
 };
 
-/**
- * ESPressio Memory Audit
- * Underlying storage: 1 bytes
- * Total Memory: 1 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 enum class HttpResponseState : uint8_t {
     Uncommitted = 0,
     Streaming,
@@ -120,19 +96,7 @@ enum class HttpResponseState : uint8_t {
     Aborted
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Port (uint16_t): 2 bytes [0 bytes dynamic allocation]
- * - MaximumConnections (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - MaximumHeaderBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - MaximumRequestBodyBytes (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - KeepAlive (bool): 1 bytes [0 bytes dynamic allocation]
- * - TransportMode (HttpTransportMode): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 20 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct HttpServerConfiguration final {
     uint16_t Port = 80;
     std::size_t MaximumConnections = 4;
@@ -142,16 +106,7 @@ struct HttpServerConfiguration final {
     HttpTransportMode TransportMode = HttpTransportMode::Plain;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - Result (WebResult): 8 bytes [0 bytes dynamic allocation]
- * - BytesRead (std::size_t): 4 bytes [0 bytes dynamic allocation]
- * - EndOfBody (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 16 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 struct HttpReadResult final {
     WebResult Result;
     std::size_t BytesRead = 0;
@@ -160,13 +115,7 @@ struct HttpReadResult final {
     explicit operator bool() const noexcept { return static_cast<bool>(Result); }
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IHttpRequestPlatform {
 public:
     virtual ~IHttpRequestPlatform() = default;
@@ -191,13 +140,7 @@ public:
     virtual HttpReadResult ReadBody(uint8_t* destination, std::size_t capacity) = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Members: none; polymorphic/virtual-base object metadata is included in the total.
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class IHttpResponsePlatform {
 public:
     virtual ~IHttpResponsePlatform() = default;
@@ -210,14 +153,7 @@ public:
     virtual void Abort() noexcept = 0;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - _platform (IHttpRequestPlatform&): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 4 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class HttpRequest final {
 public:
     explicit HttpRequest(IHttpRequestPlatform& platform) noexcept
@@ -291,15 +227,7 @@ private:
     IHttpRequestPlatform& _platform;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - _platform (IHttpResponsePlatform&): 4 bytes [0 bytes dynamic allocation]
- * - _state (HttpResponseState): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 8 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class HttpResponse final {
 public:
     explicit HttpResponse(IHttpResponsePlatform& platform) noexcept
@@ -417,15 +345,7 @@ private:
     HttpResponseState _state = HttpResponseState::Uncommitted;
 };
 
-/**
- * ESPressio Memory Audit
- * Members:
- * - _request (HttpRequest): 4 bytes [0 bytes dynamic allocation]
- * - _response (HttpResponse): 8 bytes [0 bytes dynamic allocation]
- * Total Memory: 12 bytes [0 bytes dynamic allocation]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * End ESPressio Memory Audit
- */
+
 class WebRequestContext {
 public:
     WebRequestContext(

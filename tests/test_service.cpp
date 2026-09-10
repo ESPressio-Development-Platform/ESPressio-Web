@@ -13,18 +13,7 @@ using namespace ESPressio::Web;
 
 namespace {
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - MethodValue (HttpMethod): 1 bytes [0 bytes dynamic allocation]
- * - PathValue (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - Headers (std::unordered_map<std::string, std::string>): 28 bytes [BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Total Memory: 60 bytes [PathValue: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: BucketCount * 4 bytes + N * (hash-node/link overhead + 48 bytes value); Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Headers: key/value: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Request final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Post;
@@ -60,18 +49,7 @@ public:
     }
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Body (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - Begun (bool): 1 bytes [0 bytes dynamic allocation]
- * - Completed (bool): 1 bytes [0 bytes dynamic allocation]
- * Total Memory: 32 bytes [Body: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class Response final : public IHttpResponsePlatform {
 public:
     std::string Body;
@@ -89,19 +67,7 @@ public:
     void Abort() noexcept override {}
 };
 
-/**
- * ESPressio Memory Audit
- * Inherited Memory Total: 4 bytes [0 bytes dynamic allocation]
- * Members:
- * - Mime (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - Reply (std::string): 24 bytes [Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * - SelectionCalls (int): 4 bytes [0 bytes dynamic allocation]
- * - HandleCalls (int): 4 bytes [0 bytes dynamic allocation]
- * Total Memory: 60 bytes [Mime: Capacity + 1 bytes when capacity exceeds 15-byte SSO; Reply: Capacity + 1 bytes when capacity exceeds 15-byte SSO]
- * Basis: ESP32/Xtensa ILP32 reference ABI (4-byte pointers/size_t); ESPressio stateful allocators/deleters included; ABI-sensitive STL/platform internals are identified explicitly.
- * Confidence: medium; compile-time sizeof on the concrete target remains authoritative for ABI-sensitive/opaque members.
- * End ESPressio Memory Audit
- */
+
 class MimeProvider final : public IHttpServiceProvider {
 public:
     std::string Mime;
