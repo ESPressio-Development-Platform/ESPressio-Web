@@ -7,6 +7,7 @@ on:
       - 'src/ESPressio_WebSocketSocketAdapter.hpp'
       - 'src/ESPressio_WebSocketEventBridge.hpp'
       - 'src/ESPressio_WebSocketEvents.hpp'
+      - 'src/ESPressio_WebSocketEventTransport.hpp'
       - 'tests/test_websocket_socket_adapter.cpp'
       - 'tests/test_websocket_event_bridge.cpp'
       - 'tests/CMakeLists.txt'
@@ -16,6 +17,7 @@ on:
       - 'src/ESPressio_WebSocketSocketAdapter.hpp'
       - 'src/ESPressio_WebSocketEventBridge.hpp'
       - 'src/ESPressio_WebSocketEvents.hpp'
+      - 'src/ESPressio_WebSocketEventTransport.hpp'
       - 'tests/test_websocket_socket_adapter.cpp'
       - 'tests/test_websocket_event_bridge.cpp'
       - 'tests/CMakeLists.txt'
@@ -66,6 +68,16 @@ jobs:
           path: ESPressio-Sockets
       - name: Reject family-owned predecessor WebSocket transport paths
         run: |
+          for predecessor in \
+            ESPressio-Web/src/ESPressio_WebSocketEventBridge.hpp \
+            ESPressio-Web/src/ESPressio_WebSocketEvents.hpp \
+            ESPressio-Web/src/ESPressio_WebSocketEventTransport.hpp \
+            ESPressio-Web/tests/test_websocket_event_bridge.cpp; do
+            if test -e "$predecessor"; then
+              echo "Retired predecessor path reappeared: $predecessor"
+              exit 1
+            fi
+          done
           if grep -nE 'ESPressio_Event|TypedEvent|EventTransportManager|IEventTransport|CommandRegistry|StateTransport' ESPressio-Web/src/ESPressio_WebSocketSocketAdapter.hpp; then
             exit 1
           fi
