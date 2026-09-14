@@ -102,6 +102,15 @@ target_include_directories(espressio_web_command_integration_tests PRIVATE
 
 target_include_directories(espressio_web_state_integration_tests PRIVATE
     ../../ESPressio-State/src
+    ../../ESPressio-Primitive/src
+    ../../ESPressio-Serializable/src
+    ../../ESPressio-Persistence/src
+    ../../ESPressio-Security/src
+    ../../ESPressio-Threads/src
+    ../../ESPressio-Task/src
+    ../../ESPressio-Timing/tests/stubs
+    ../../ESPressio-Timing/src
+    ../../ESPressio-Units/src
 )
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
