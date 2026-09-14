@@ -1,0 +1,114 @@
+name: Primitive Command Ingress Contract
+
+on:
+  push:
+    branches: [ primitives_redesign ]
+    paths:
+      - 'src/ESPressio_WebCommand.hpp'
+      - 'tests/test_web_command.cpp'
+      - '.github/workflows/primitives-redesign-command.yml'
+  pull_request:
+    paths:
+      - 'src/ESPressio_WebCommand.hpp'
+      - 'tests/test_web_command.cpp'
+      - '.github/workflows/primitives-redesign-command.yml'
+
+jobs:
+  command-ingress:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-Web
+      - name: Check out Primitive redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: primitives_redesign
+          path: ESPressio-Primitive
+      - name: Check out Command redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Command
+          ref: primitives_redesign
+          path: ESPressio-Command
+      - name: Check out Serializable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Serializable
+          ref: primitives_redesign
+          path: ESPressio-Serializable
+      - name: Check out System redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: primitives_redesign
+          path: ESPressio-System
+      - name: Check out Observable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
+      - name: Check out Task redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: primitives_redesign
+          path: ESPressio-Task
+      - name: Check out Threads redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Threads
+          ref: primitives_redesign
+          path: ESPressio-Threads
+      - name: Check out Timing redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: primitives_redesign
+          path: ESPressio-Timing
+      - name: Check out Units redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: primitives_redesign
+          path: ESPressio-Units
+      - name: Check out Persistence redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Persistence
+          ref: primitives_redesign
+          path: ESPressio-Persistence
+      - name: Check out Security redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Security
+          ref: primitives_redesign
+          path: ESPressio-Security
+      - name: Reject predecessor Web Command ingress
+        run: |
+          if grep -nE 'CommandRequestEnvelope|InboundCommandEvent|CommandEvents|CommandEnvelope|ESPRESSIO_COMMAND_MAX_RAW_LENGTH' ESPressio-Web/src/ESPressio_WebCommand.hpp ESPressio-Web/tests/test_web_command.cpp; then
+            exit 1
+          fi
+      - name: Compile D10-03 Command ingress contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror
+          -I ESPressio-Web/src
+          -I ESPressio-Primitive/src
+          -I ESPressio-Command/src
+          -I ESPressio-Serializable/src
+          -I ESPressio-System/src
+          -I ESPressio-Observable/src
+          -I ESPressio-Task/src
+          -I ESPressio-Threads/src
+          -I ESPressio-Timing/tests/stubs
+          -I ESPressio-Timing/src
+          -I ESPressio-Units/src
+          -I ESPressio-Persistence/src
+          -I ESPressio-Security/src
+          ESPressio-Web/tests/test_web_command.cpp
+          -pthread
+          -o command-ingress-test
+      - name: Run D10-03 Command ingress contract
+        run: ./command-ingress-test
