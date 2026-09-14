@@ -15,11 +15,7 @@ set(ESPRESSIO_WEB_COMMON_INCLUDES
 add_executable(espressio_web_core_include test_core_include.cpp)
 add_executable(espressio_web_websocket_tests test_websocket.cpp)
 add_executable(espressio_web_websocket_policy_tests test_websocket_policy.cpp)
-add_executable(
-    espressio_web_websocket_event_bridge_tests
-    test_websocket_event_bridge.cpp
-    ../../ESPressio-Threads/src/ESPressio_Thread.cpp
-)
+add_executable(espressio_web_websocket_socket_adapter_tests test_websocket_socket_adapter.cpp)
 add_executable(espressio_web_http_tests test_http.cpp)
 add_executable(espressio_web_router_tests test_router.cpp)
 add_executable(espressio_web_middleware_tests test_middleware.cpp)
@@ -40,7 +36,7 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_core_include
     espressio_web_websocket_tests
     espressio_web_websocket_policy_tests
-    espressio_web_websocket_event_bridge_tests
+    espressio_web_websocket_socket_adapter_tests
     espressio_web_http_tests
     espressio_web_router_tests
     espressio_web_middleware_tests
@@ -78,13 +74,11 @@ target_include_directories(espressio_web_event_integration_tests PRIVATE
     ../../ESPressio-Units/src
 )
 
-target_include_directories(espressio_web_websocket_event_bridge_tests PRIVATE
-    ../../ESPressio-Event/src
-    ../../ESPressio-Threads/src
+target_include_directories(espressio_web_websocket_socket_adapter_tests PRIVATE
+    ../../ESPressio-Sockets/src
+    ../../ESPressio-Adapters/src
+    ../../ESPressio-Primitive/src
     ../../ESPressio-Task/src
-    ../../ESPressio-Timing/tests/stubs
-    ../../ESPressio-Timing/src
-    ../../ESPressio-Units/src
 )
 
 target_include_directories(espressio_web_command_integration_tests PRIVATE
