@@ -129,7 +129,7 @@ public:
     }
 };
 
-using Handler = HttpStateInspection<128>;
+using Handler = HttpStateInspection<512>;
 using Runtime = S::Runtime<
     S::TypeConfiguration<DynamicState>,
     S::TypeConfiguration<LocalOnlyState>>;
@@ -165,8 +165,9 @@ struct Fixture final {
     }
 };
 
+template<class THandler>
 HttpHandlerResult Invoke(
-    Handler& handler,
+    THandler& handler,
     Request& request,
     Response& response
 ) {
@@ -260,6 +261,21 @@ void TestP3RepresentationSelection(Fixture& fixture) {
     assert(unsupportedResponse.Status == HttpStatus::UnsupportedMediaType);
 }
 
+void TestFiniteRepresentationCapacity(Fixture& fixture) {
+    HttpStateInspection<1> tiny;
+    HttpStateInspectionConfiguration configuration{};
+    configuration.Types = fixture.Directory.View();
+    configuration.TargetSelector = &fixture.Target;
+    configuration.Authorizer = &fixture.Authorization;
+    assert(tiny.Configure(configuration));
+
+    Request request;
+    Response response;
+    assert(Invoke(tiny, request, response));
+    assert(response.Status == HttpStatus::ServiceUnavailable);
+    assert(response.Body.empty());
+}
+
 void TestDiscoveryAuthorizationAndSerializableBoundary(Fixture& fixture) {
     Request request;
 
@@ -296,6 +312,7 @@ int main() {
     TestAbsentValueAndReadOnlyMethodBoundary(fixture);
     TestDirectBinaryGetAndHead(fixture);
     TestP3RepresentationSelection(fixture);
+    TestFiniteRepresentationCapacity(fixture);
     TestDiscoveryAuthorizationAndSerializableBoundary(fixture);
     return 0;
 }
