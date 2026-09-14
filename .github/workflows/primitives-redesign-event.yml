@@ -1,0 +1,93 @@
+name: Primitive Event Web Contract
+
+on:
+  push:
+    branches: [ primitives_redesign ]
+    paths:
+      - 'src/ESPressio_WebEvent.hpp'
+      - 'tests/test_web_event.cpp'
+      - '.github/workflows/primitives-redesign-event.yml'
+  pull_request:
+    paths:
+      - 'src/ESPressio_WebEvent.hpp'
+      - 'tests/test_web_event.cpp'
+      - '.github/workflows/primitives-redesign-event.yml'
+
+jobs:
+  event-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-Web
+      - name: Check out Primitive redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: primitives_redesign
+          path: ESPressio-Primitive
+      - name: Check out Event redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Event
+          ref: primitives_redesign
+          path: ESPressio-Event
+      - name: Check out Serializable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Serializable
+          ref: primitives_redesign
+          path: ESPressio-Serializable
+      - name: Check out System redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: primitives_redesign
+          path: ESPressio-System
+      - name: Check out Observable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
+      - name: Check out Task redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Task
+          ref: primitives_redesign
+          path: ESPressio-Task
+      - name: Check out Timing redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: primitives_redesign
+          path: ESPressio-Timing
+      - name: Check out Units redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: primitives_redesign
+          path: ESPressio-Units
+      - name: Reject predecessor Web Event transport
+        run: |
+          if grep -nE 'IEventTransport|EventTransportBuffer|EventTransportPacket|EventTransportManager|SetReceiver|ReceiveEventTransportPacket' ESPressio-Web/src/ESPressio_WebEvent.hpp ESPressio-Web/tests/test_web_event.cpp; then
+            exit 1
+          fi
+      - name: Compile D10-04 Event Web contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror
+          -I ESPressio-Web/src
+          -I ESPressio-Primitive/src
+          -I ESPressio-Event/src
+          -I ESPressio-Serializable/src
+          -I ESPressio-System/src
+          -I ESPressio-Observable/src
+          -I ESPressio-Task/src
+          -I ESPressio-Timing/tests/stubs
+          -I ESPressio-Timing/src
+          -I ESPressio-Units/src
+          ESPressio-Web/tests/test_web_event.cpp
+          -pthread
+          -o event-web-test
+      - name: Run D10-04 Event Web contract
+        run: ./event-web-test
