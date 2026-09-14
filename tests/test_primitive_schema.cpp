@@ -19,12 +19,12 @@ const Serializable::StaticSchemaDescriptor SecondarySchema{
     1, 1, 1, 0, nullptr, 0x5678u, 4, 8, 16
 };
 
-struct SchemaCommand final : Command::SerializableCommand<SchemaCommand> {
-    static constexpr Command::CommandTypeId TypeId{201};
+struct SchemaCommand final : ESPressio::Command::SerializableCommand<SchemaCommand> {
+    static constexpr ESPressio::Command::CommandTypeId TypeId{201};
     static constexpr const char* CanonicalName="Test.Web.SchemaCommand";
     static constexpr std::size_t MaximumLiveInstances=2;
     static constexpr std::size_t MaximumPendingExecutions=1;
-    using ExecutionAdmissionPolicy=Command::RequiredExecution;
+    using ExecutionAdmissionPolicy=ESPressio::Command::RequiredExecution;
     std::int32_t Value=0;
     ESPRESSIO_SERIALIZABLE_TYPE(SchemaCommand)
     ESPRESSIO_SERIALIZABLE_SCHEMA_VERSION(1)
@@ -119,7 +119,11 @@ void TestRealSerializableCommandDescriptor() {
     assert(directory.Register<SchemaCommand>()==Primitive::TypeDirectoryRegistrationStatus::Success);
     assert(directory.Initialize()==Primitive::TypeDirectoryInitializationStatus::Success);
     const auto view=directory.View();
-    const auto* discovered=view.Find({Primitive::FamilyIds::Command,SchemaCommand::TypeId.Value()});
+    const Primitive::PrimitiveTypeKey key{
+        Primitive::FamilyIds::Command,
+        SchemaCommand::TypeId.Value()
+    };
+    const auto* discovered=view.Find(key);
     assert(discovered);
 
     PrimitiveSchemaMetadata metadata;
