@@ -74,6 +74,12 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Units
           ref: primitives_redesign
           path: ESPressio-Units
+      - name: Check out Observable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
       - name: Check out Persistence redesign
         uses: actions/checkout@v4
         with:
@@ -94,6 +100,7 @@ jobs:
           -I ESPressio-Timing/src
           -I ESPressio-Timing/tests/stubs
           -I ESPressio-Units/src
+          -I ESPressio-Observable/src
           -I ESPressio-Persistence/src
           ESPressio-Web/tests/test_primitive_schema.cpp
           -pthread
