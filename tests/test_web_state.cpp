@@ -1,3 +1,4 @@
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -8,54 +9,78 @@
 #include <unordered_map>
 #include <vector>
 
-#define ESPRESSIO_STATE_ENABLE_INTROSPECTION 0
+#include <ESPressio_SerializationMacros.hpp>
+#include <ESPressio_States.hpp>
 #include <ESPressio_WebState.hpp>
 
+using namespace ESPressio;
 using namespace ESPressio::Web;
 
 namespace {
 
-
-struct CounterState {
-    using Value = uint32_t;
-    static constexpr ESPressio::State::StateTypeId Id = 7;
-    static constexpr const char* Name = "counter.value";
+struct DynamicValue final {
+    std::uint32_t Value = 0;
+    constexpr bool operator==(const DynamicValue& other) const noexcept {
+        return Value == other.Value;
+    }
+    ESPRESSIO_SERIALIZABLE_TYPE(DynamicValue)
+    ESPRESSIO_SERIALIZABLE_SCHEMA_VERSION(1)
+    ESPRESSIO_SERIALIZABLE_PROPERTIES(ESPRESSIO_PROPERTY("value", Value))
 };
 
-using Contract = ESPressio::State::StateContract<CounterState>;
+struct DynamicState final : State::SerializableState<DynamicState, DynamicValue> {
+    static constexpr State::StateTypeId TypeId{0x7701};
+    static constexpr std::string_view CanonicalName = "Test.Web.DynamicState";
+};
 
+struct LocalOnlyState final : State::State<LocalOnlyState, std::uint32_t> {
+    static constexpr State::StateTypeId TypeId{0x7702};
+    static constexpr std::string_view CanonicalName = "Test.Web.LocalOnlyState";
+};
+
+Timing::QualifiedTime CaptureTruthTime() {
+    return {123456789ULL, Timing::TimeReliability::Holdover};
+}
 
 class Request final : public IHttpRequestPlatform {
 public:
     HttpMethod MethodValue = HttpMethod::Get;
+    std::string_view Accept;
 
     HttpMethod Method() const noexcept override { return MethodValue; }
-    std::string_view Path() const noexcept override { return "/state/counter"; }
+    std::string_view Path() const noexcept override { return "/application-owned-state-route"; }
     std::string_view QueryString() const noexcept override { return {}; }
     std::optional<std::size_t> ContentLength() const noexcept override { return std::nullopt; }
-    bool HasHeader(std::string_view) const noexcept override { return false; }
-    std::size_t HeaderValueLength(std::string_view) const noexcept override { return 0; }
+    bool HasHeader(std::string_view name) const noexcept override {
+        return name == HttpHeaderName::Accept && !Accept.empty();
+    }
+    std::size_t HeaderValueLength(std::string_view name) const noexcept override {
+        return HasHeader(name) ? Accept.size() : 0;
+    }
     WebResult ReadHeader(
-        std::string_view,
-        char*,
-        std::size_t,
+        std::string_view name,
+        char* destination,
+        std::size_t capacity,
         std::size_t& written
     ) const override {
         written = 0;
-        return WebResult::Failure(WebError::NotFound);
+        if (!HasHeader(name)) return WebResult::Failure(WebError::NotFound);
+        if (capacity < Accept.size()) return WebResult::Failure(WebError::ResourceExhausted);
+        std::memcpy(destination, Accept.data(), Accept.size());
+        written = Accept.size();
+        return WebResult::Success();
     }
-    HttpReadResult ReadBody(uint8_t*, std::size_t) override {
+    HttpReadResult ReadBody(std::uint8_t*, std::size_t) override {
         return {WebResult::Success(), 0, true};
     }
 };
-
 
 class Response final : public IHttpResponsePlatform {
 public:
     HttpStatus Status = HttpStatus::Ok;
     std::unordered_map<std::string, std::string> Headers;
     std::optional<std::size_t> Length;
-    std::vector<uint8_t> Body;
+    std::vector<std::uint8_t> Body;
     bool Completed = false;
 
     WebResult SetStatus(HttpStatus status) override {
@@ -70,7 +95,7 @@ public:
         Length = length;
         return WebResult::Success();
     }
-    WebResult Write(const uint8_t* data, std::size_t size) override {
+    WebResult Write(const std::uint8_t* data, std::size_t size) override {
         Body.insert(Body.end(), data, data + size);
         return WebResult::Success();
     }
@@ -81,8 +106,66 @@ public:
     void Abort() noexcept override {}
 };
 
+class Selector final : public IHttpStateTargetSelector {
+public:
+    std::string_view Name = DynamicState::CanonicalName;
+    std::string_view SelectStateType(
+        const HttpRequest&,
+        const RouteParameters&
+    ) const noexcept override {
+        return Name;
+    }
+};
+
+class Authorizer final : public IHttpStateAuthorizer {
+public:
+    HttpStateAuthorizationDecision Decision = HttpStateAuthorizationDecision::Authorized;
+    HttpStateAuthorizationDecision Authorize(
+        const HttpRequest&,
+        const Primitive::PrimitiveTypeDescriptor&
+    ) const noexcept override {
+        return Decision;
+    }
+};
+
+using Handler = HttpStateInspection<128>;
+using Runtime = State::Runtime<
+    State::TypeConfiguration<DynamicState>,
+    State::TypeConfiguration<LocalOnlyState>>;
+
+struct Fixture final {
+    Primitive::TypeDirectory<2> Directory;
+    Runtime States;
+    State::StateOwner<DynamicState> DynamicOwner;
+    State::StateOwner<LocalOnlyState> LocalOwner;
+    Selector Target;
+    Authorizer Authorization;
+    Handler Inspection;
+
+    Fixture() {
+        assert(Directory.Register<DynamicState>() == Primitive::TypeDirectoryRegistrationStatus::Success);
+        assert(Directory.Register<LocalOnlyState>() == Primitive::TypeDirectoryRegistrationStatus::Success);
+        assert(Directory.Initialize() == Primitive::TypeDirectoryInitializationStatus::Success);
+        DynamicOwner = States.BindOwner<DynamicState>();
+        LocalOwner = States.BindOwner<LocalOnlyState>();
+        assert(DynamicOwner && LocalOwner);
+        assert(States.Initialize(Directory.View(), &CaptureTruthTime) == State::StateRuntimeStatus::Success);
+        assert(States.Start() == State::StateRuntimeStatus::Success);
+
+        HttpStateInspectionConfiguration configuration{};
+        configuration.Types = Directory.View();
+        configuration.TargetSelector = &Target;
+        configuration.Authorizer = &Authorization;
+        assert(Inspection.Configure(configuration));
+    }
+
+    ~Fixture() {
+        assert(States.Shutdown() == State::StateRuntimeStatus::Success);
+    }
+};
+
 HttpHandlerResult Invoke(
-    StateSnapshotHttpHandler<Contract, CounterState>& handler,
+    Handler& handler,
     Request& request,
     Response& response
 ) {
@@ -91,62 +174,127 @@ HttpHandlerResult Invoke(
     return handler.Handle(context, parameters);
 }
 
-void TestGetAndHeadUseStateSnapshotAndCodec() {
-    ESPressio::State::StatePublisher<Contract> publisher;
-    assert(publisher.RegisterSource<CounterState>([] { return uint32_t{42}; }));
-    StateSnapshotHttpHandler<Contract, CounterState> handler(publisher);
+void TestConfigurationRequiresFrozenDiscoveryAndSecurity() {
+    Handler handler;
+    HttpStateInspectionConfiguration configuration{};
+    assert(!handler.Configure(configuration));
 
-    Request getRequest;
-    Response getResponse;
-    auto result = Invoke(handler, getRequest, getResponse);
-    assert(result);
-    assert(result.Disposition == HttpHandlerDisposition::Handled);
-    assert(getResponse.Status == HttpStatus::Ok);
-    assert(getResponse.Completed);
-    assert(getResponse.Length == std::optional<std::size_t>(sizeof(uint32_t)));
-    assert(getResponse.Headers["Content-Type"] == "application/octet-stream");
-    assert(getResponse.Headers["X-ESPressio-State-Type"] == "counter.value");
-    assert(getResponse.Headers["X-ESPressio-State-Type-Id"] == "7");
-    assert(getResponse.Headers["X-ESPressio-State-Epoch"] == "1");
-    assert(getResponse.Headers["X-ESPressio-State-Revision"] == "1");
-    assert(getResponse.Body.size() == sizeof(uint32_t));
+    Primitive::TypeDirectory<1> unfrozen;
+    Selector selector;
+    Authorizer authorizer;
+    configuration.Types = unfrozen.View();
+    configuration.TargetSelector = &selector;
+    configuration.Authorizer = &authorizer;
+    assert(!handler.Configure(configuration));
+}
 
-    uint32_t decoded = 0;
-    std::memcpy(&decoded, getResponse.Body.data(), sizeof(decoded));
-    assert(decoded == 42);
+void TestAbsentValueAndReadOnlyMethodBoundary(Fixture& fixture) {
+    Request request;
+    Response absent;
+    auto result = Invoke(fixture.Inspection, request, absent);
+    assert(result && absent.Status == HttpStatus::NotFound);
 
-    Request headRequest;
-    headRequest.MethodValue = HttpMethod::Head;
+    request.MethodValue = HttpMethod::Post;
+    Response post;
+    result = Invoke(fixture.Inspection, request, post);
+    assert(result && result.Disposition == HttpHandlerDisposition::NotHandled);
+}
+
+void TestDirectBinaryGetAndHead(Fixture& fixture) {
+    assert(fixture.DynamicOwner.Set({42}) == State::StateSetStatus::Changed);
+
+    Request get;
+    Response response;
+    auto result = Invoke(fixture.Inspection, get, response);
+    assert(result && result.Disposition == HttpHandlerDisposition::Handled);
+    assert(response.Status == HttpStatus::Ok && response.Completed);
+    assert(response.Headers["Content-Type"] == "application/octet-stream");
+    assert(response.Headers["X-ESPressio-State-Type"] == "Test.Web.DynamicState");
+    assert(response.Headers["X-ESPressio-State-Type-Id"] == std::to_string(DynamicState::TypeId.Value()));
+    assert(response.Headers["X-ESPressio-State-Truth-Nanoseconds"] == "123456789");
+    assert(!response.Headers["X-ESPressio-State-Time-Reliability"].empty());
+    assert(response.Length.has_value() && *response.Length == response.Body.size());
+
+    DynamicValue decoded{};
+    assert(Serializable::DeserializeBoundedDirectBinary(
+        response.Body.data(), response.Body.size(), decoded));
+    assert(decoded.Value == 42);
+
+    Request head;
+    head.MethodValue = HttpMethod::Head;
     Response headResponse;
-    result = Invoke(handler, headRequest, headResponse);
-    assert(result);
-    assert(result.Disposition == HttpHandlerDisposition::Handled);
-    assert(headResponse.Completed);
-    assert(headResponse.Length == std::optional<std::size_t>(sizeof(uint32_t)));
+    result = Invoke(fixture.Inspection, head, headResponse);
+    assert(result && headResponse.Status == HttpStatus::Ok && headResponse.Completed);
+    assert(headResponse.Length.has_value() && *headResponse.Length > 0);
     assert(headResponse.Body.empty());
 }
 
-void TestMissingSourceAndUnsupportedMethod() {
-    ESPressio::State::StatePublisher<Contract> publisher;
-    StateSnapshotHttpHandler<Contract, CounterState> handler(publisher);
+void TestP3RepresentationSelection(Fixture& fixture) {
+    Request json;
+    json.Accept = "application/json";
+    Response jsonResponse;
+    assert(Invoke(fixture.Inspection, json, jsonResponse));
+    assert(jsonResponse.Status == HttpStatus::Ok);
+    assert(jsonResponse.Headers["Content-Type"] == "application/json");
+    DynamicValue jsonDecoded{};
+    assert(Serializable::DeserializeBoundedJson(
+        jsonResponse.Body.data(), jsonResponse.Body.size(), jsonDecoded));
+    assert(jsonDecoded.Value == 42);
 
+    Request cbor;
+    cbor.Accept = "application/cbor";
+    Response cborResponse;
+    assert(Invoke(fixture.Inspection, cbor, cborResponse));
+    assert(cborResponse.Status == HttpStatus::Ok);
+    assert(cborResponse.Headers["Content-Type"] == "application/cbor");
+    DynamicValue cborDecoded{};
+    assert(Serializable::DeserializeBoundedCbor(
+        cborResponse.Body.data(), cborResponse.Body.size(), cborDecoded));
+    assert(cborDecoded.Value == 42);
+
+    Request unsupported;
+    unsupported.Accept = "text/plain";
+    Response unsupportedResponse;
+    assert(Invoke(fixture.Inspection, unsupported, unsupportedResponse));
+    assert(unsupportedResponse.Status == HttpStatus::UnsupportedMediaType);
+}
+
+void TestDiscoveryAuthorizationAndSerializableBoundary(Fixture& fixture) {
     Request request;
-    Response response;
-    auto result = Invoke(handler, request, response);
-    assert(!result);
-    assert(result.Result.Error == WebError::NotFound);
 
-    request.MethodValue = HttpMethod::Post;
-    Response postResponse;
-    result = Invoke(handler, request, postResponse);
-    assert(result);
-    assert(result.Disposition == HttpHandlerDisposition::NotHandled);
+    fixture.Target.Name = "Missing.State";
+    Response missing;
+    assert(Invoke(fixture.Inspection, request, missing));
+    assert(missing.Status == HttpStatus::NotFound);
+
+    fixture.Target.Name = DynamicState::CanonicalName;
+    fixture.Authorization.Decision = HttpStateAuthorizationDecision::Unauthorized;
+    Response unauthorized;
+    assert(Invoke(fixture.Inspection, request, unauthorized));
+    assert(unauthorized.Status == HttpStatus::Unauthorized);
+
+    fixture.Authorization.Decision = HttpStateAuthorizationDecision::Forbidden;
+    Response forbidden;
+    assert(Invoke(fixture.Inspection, request, forbidden));
+    assert(forbidden.Status == HttpStatus::Forbidden);
+
+    fixture.Authorization.Decision = HttpStateAuthorizationDecision::Authorized;
+    fixture.Target.Name = LocalOnlyState::CanonicalName;
+    Response localOnly;
+    assert(Invoke(fixture.Inspection, request, localOnly));
+    assert(localOnly.Status == HttpStatus::UnprocessableContent);
+
+    fixture.Target.Name = DynamicState::CanonicalName;
 }
 
 } // namespace
 
 int main() {
-    TestGetAndHeadUseStateSnapshotAndCodec();
-    TestMissingSourceAndUnsupportedMethod();
+    TestConfigurationRequiresFrozenDiscoveryAndSecurity();
+    Fixture fixture;
+    TestAbsentValueAndReadOnlyMethodBoundary(fixture);
+    TestDirectBinaryGetAndHead(fixture);
+    TestP3RepresentationSelection(fixture);
+    TestDiscoveryAuthorizationAndSerializableBoundary(fixture);
     return 0;
 }
