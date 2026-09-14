@@ -28,6 +28,7 @@ add_executable(espressio_web_resource_tests test_resources.cpp)
 add_executable(espressio_web_persistence_resource_tests test_persistence_resources.cpp)
 add_executable(espressio_web_dns_tests test_dns.cpp)
 add_executable(espressio_web_service_tests test_service.cpp)
+add_executable(espressio_web_primitive_discovery_tests test_primitive_discovery.cpp)
 add_executable(espressio_web_event_integration_tests test_web_event.cpp)
 add_executable(
     espressio_web_command_integration_tests
@@ -53,6 +54,7 @@ set(ESPRESSIO_WEB_TEST_TARGETS
     espressio_web_persistence_resource_tests
     espressio_web_dns_tests
     espressio_web_service_tests
+    espressio_web_primitive_discovery_tests
     espressio_web_event_integration_tests
     espressio_web_command_integration_tests
     espressio_web_state_integration_tests
@@ -66,6 +68,10 @@ endforeach()
 
 target_include_directories(espressio_web_persistence_resource_tests PRIVATE
     ../../ESPressio-Persistence/src
+)
+
+target_include_directories(espressio_web_primitive_discovery_tests PRIVATE
+    ../../ESPressio-Primitive/src
 )
 
 target_include_directories(espressio_web_event_integration_tests PRIVATE
