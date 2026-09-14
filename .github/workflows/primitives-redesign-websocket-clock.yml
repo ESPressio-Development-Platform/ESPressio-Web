@@ -1,0 +1,75 @@
+name: WebSocket Timing Evidence Contract
+
+on:
+  push:
+    branches: [ primitives_redesign ]
+    paths:
+      - 'src/ESPressio_WebSocketClockSynchronization.hpp'
+      - 'tests/test_websocket_clock_synchronization.cpp'
+      - 'tests/CMakeLists.txt'
+      - '.github/workflows/primitives-redesign-websocket-clock.yml'
+  pull_request:
+    paths:
+      - 'src/ESPressio_WebSocketClockSynchronization.hpp'
+      - 'tests/test_websocket_clock_synchronization.cpp'
+      - 'tests/CMakeLists.txt'
+      - '.github/workflows/primitives-redesign-websocket-clock.yml'
+
+jobs:
+  websocket-clock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: ESPressio-Web
+      - name: Check out System redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-System
+          ref: primitives_redesign
+          path: ESPressio-System
+      - name: Check out Observable redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Observable
+          ref: primitives_redesign
+          path: ESPressio-Observable
+      - name: Check out Units redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Units
+          ref: primitives_redesign
+          path: ESPressio-Units
+      - name: Check out Timing redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Timing
+          ref: primitives_redesign
+          path: ESPressio-Timing
+      - name: Check out Sockets redesign
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Sockets
+          ref: primitives_redesign
+          path: ESPressio-Sockets
+      - name: Reject predecessor clock ownership
+        run: |
+          if grep -nE 'PrecisionThread|SynchronizationIntervalMilliseconds|AutomaticSynchronization|RequestMessage|AuthoritativeBroadcast|GetLocalTimestamp' ESPressio-Web/src/ESPressio_WebSocketClockSynchronization.hpp; then
+            exit 1
+          fi
+      - name: Compile D10-07 Timing evidence contract
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror
+          -I ESPressio-Web/src
+          -I ESPressio-Sockets/src
+          -I ESPressio-Sockets/src/timing
+          -I ESPressio-Timing/tests/stubs
+          -I ESPressio-Timing/src
+          -I ESPressio-Units/src
+          -I ESPressio-System/src
+          -I ESPressio-Observable/src
+          ESPressio-Web/tests/test_websocket_clock_synchronization.cpp
+          -pthread
+          -o websocket-clock-test
+      - name: Run D10-07 Timing evidence contract
+        run: ./websocket-clock-test
