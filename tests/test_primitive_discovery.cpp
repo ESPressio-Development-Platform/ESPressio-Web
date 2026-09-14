@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
 
 #include <ESPressio_PrimitiveFamilyRegistry.hpp>
 #include <ESPressio_WebPrimitiveDiscovery.hpp>
