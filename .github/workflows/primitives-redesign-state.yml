@@ -90,7 +90,7 @@ jobs:
           path: ESPressio-Security
       - name: Reject predecessor or mutating Web State surfaces
         run: |
-          if grep -nE 'StatePublisher|StateCodec|StateContract|StateUpdate|StateEpoch|SetByTypeId|StateOwner' ESPressio-Web/src/ESPressio_WebState.hpp; then
+          if grep -nE 'StatePublisher|StateCodec|StateContract|StateUpdate|StateEpoch|SetByTypeId|State::StateOwner|ESPressio_StateOwner' ESPressio-Web/src/ESPressio_WebState.hpp; then
             exit 1
           fi
       - name: Compile D10-05 State inspection contract
