@@ -29,11 +29,7 @@ add_executable(espressio_web_dns_tests test_dns.cpp)
 add_executable(espressio_web_service_tests test_service.cpp)
 add_executable(espressio_web_primitive_discovery_tests test_primitive_discovery.cpp)
 add_executable(espressio_web_event_integration_tests test_web_event.cpp)
-add_executable(
-    espressio_web_command_integration_tests
-    test_web_command.cpp
-    ../../ESPressio-Threads/src/ESPressio_Thread.cpp
-)
+add_executable(espressio_web_command_integration_tests test_web_command.cpp)
 add_executable(espressio_web_state_integration_tests test_web_state.cpp)
 add_executable(
     espressio_web_implementor_example
@@ -86,11 +82,14 @@ target_include_directories(espressio_web_websocket_event_bridge_tests PRIVATE
 )
 
 target_include_directories(espressio_web_command_integration_tests PRIVATE
-    ../../ESPressio-Timing/tests/stubs
     ../../ESPressio-Command/src
-    ../../ESPressio-Event/src
+    ../../ESPressio-Primitive/src
+    ../../ESPressio-Serializable/src
+    ../../ESPressio-Persistence/src
+    ../../ESPressio-Security/src
     ../../ESPressio-Threads/src
     ../../ESPressio-Task/src
+    ../../ESPressio-Timing/tests/stubs
     ../../ESPressio-Timing/src
     ../../ESPressio-Units/src
 )
