@@ -70,6 +70,12 @@ target_include_directories(espressio_web_primitive_discovery_tests PRIVATE
 
 target_include_directories(espressio_web_event_integration_tests PRIVATE
     ../../ESPressio-Event/src
+    ../../ESPressio-Primitive/src
+    ../../ESPressio-Serializable/src
+    ../../ESPressio-Task/src
+    ../../ESPressio-Timing/tests/stubs
+    ../../ESPressio-Timing/src
+    ../../ESPressio-Units/src
 )
 
 target_include_directories(espressio_web_websocket_event_bridge_tests PRIVATE
