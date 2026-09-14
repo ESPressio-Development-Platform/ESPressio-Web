@@ -30,12 +30,24 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Primitive
           ref: primitives_redesign
           path: ESPressio-Primitive
+      - name: Check out ESPressio Serializable primitives redesign branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Serializable
+          ref: primitives_redesign
+          path: ESPressio-Serializable
       - name: Check out ESPressio Persistence primitives redesign branch
         uses: actions/checkout@v4
         with:
           repository: ESPressio-Development-Platform/ESPressio-Persistence
           ref: primitives_redesign
           path: ESPressio-Persistence
+      - name: Check out ESPressio Security primitives redesign branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Security
+          ref: primitives_redesign
+          path: ESPressio-Security
       - name: Check out ESPressio State primitives redesign branch
         uses: actions/checkout@v4
         with:
