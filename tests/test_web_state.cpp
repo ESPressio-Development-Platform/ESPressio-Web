@@ -15,6 +15,7 @@
 
 using namespace ESPressio;
 using namespace ESPressio::Web;
+namespace S = ESPressio::State;
 
 namespace {
 
@@ -28,13 +29,13 @@ struct DynamicValue final {
     ESPRESSIO_SERIALIZABLE_PROPERTIES(ESPRESSIO_PROPERTY("value", Value))
 };
 
-struct DynamicState final : State::SerializableState<DynamicState, DynamicValue> {
-    static constexpr State::StateTypeId TypeId{0x7701};
+struct DynamicState final : S::SerializableState<DynamicState, DynamicValue> {
+    static constexpr S::StateTypeId TypeId{0x7701};
     static constexpr std::string_view CanonicalName = "Test.Web.DynamicState";
 };
 
-struct LocalOnlyState final : State::State<LocalOnlyState, std::uint32_t> {
-    static constexpr State::StateTypeId TypeId{0x7702};
+struct LocalOnlyState final : S::State<LocalOnlyState, std::uint32_t> {
+    static constexpr S::StateTypeId TypeId{0x7702};
     static constexpr std::string_view CanonicalName = "Test.Web.LocalOnlyState";
 };
 
@@ -129,15 +130,15 @@ public:
 };
 
 using Handler = HttpStateInspection<128>;
-using Runtime = State::Runtime<
-    State::TypeConfiguration<DynamicState>,
-    State::TypeConfiguration<LocalOnlyState>>;
+using Runtime = S::Runtime<
+    S::TypeConfiguration<DynamicState>,
+    S::TypeConfiguration<LocalOnlyState>>;
 
 struct Fixture final {
     Primitive::TypeDirectory<2> Directory;
     Runtime States;
-    State::StateOwner<DynamicState> DynamicOwner;
-    State::StateOwner<LocalOnlyState> LocalOwner;
+    S::StateOwner<DynamicState> DynamicOwner;
+    S::StateOwner<LocalOnlyState> LocalOwner;
     Selector Target;
     Authorizer Authorization;
     Handler Inspection;
@@ -149,8 +150,8 @@ struct Fixture final {
         DynamicOwner = States.BindOwner<DynamicState>();
         LocalOwner = States.BindOwner<LocalOnlyState>();
         assert(DynamicOwner && LocalOwner);
-        assert(States.Initialize(Directory.View(), &CaptureTruthTime) == State::StateRuntimeStatus::Success);
-        assert(States.Start() == State::StateRuntimeStatus::Success);
+        assert(States.Initialize(Directory.View(), &CaptureTruthTime) == S::StateRuntimeStatus::Success);
+        assert(States.Start() == S::StateRuntimeStatus::Success);
 
         HttpStateInspectionConfiguration configuration{};
         configuration.Types = Directory.View();
@@ -160,7 +161,7 @@ struct Fixture final {
     }
 
     ~Fixture() {
-        assert(States.Shutdown() == State::StateRuntimeStatus::Success);
+        assert(States.Shutdown() == S::StateRuntimeStatus::Success);
     }
 };
 
@@ -201,7 +202,7 @@ void TestAbsentValueAndReadOnlyMethodBoundary(Fixture& fixture) {
 }
 
 void TestDirectBinaryGetAndHead(Fixture& fixture) {
-    assert(fixture.DynamicOwner.Set({42}) == State::StateSetStatus::Changed);
+    assert(fixture.DynamicOwner.Set({42}) == S::StateSetStatus::Changed);
 
     Request get;
     Response response;
