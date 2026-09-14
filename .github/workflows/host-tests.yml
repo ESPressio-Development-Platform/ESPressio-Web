@@ -30,6 +30,18 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Primitive
           ref: primitives_redesign
           path: ESPressio-Primitive
+      - name: Check out ESPressio Adapters primitives redesign branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Adapters
+          ref: primitives_redesign
+          path: ESPressio-Adapters
+      - name: Check out ESPressio Sockets primitives redesign branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Sockets
+          ref: primitives_redesign
+          path: ESPressio-Sockets
       - name: Check out ESPressio Serializable primitives redesign branch
         uses: actions/checkout@v4
         with:
