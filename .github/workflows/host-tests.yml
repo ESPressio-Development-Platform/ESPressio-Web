@@ -2,7 +2,7 @@ name: Host Tests
 
 on:
   push:
-    branches: [ main, 'feature/**', 'bugfix/**', 'optimisation/**', 'work/**' ]
+    branches: [ main, primitives_redesign, 'feature/**', 'bugfix/**', 'optimisation/**', 'work/**' ]
   pull_request:
 
 jobs:
@@ -24,6 +24,12 @@ jobs:
           repository: ESPressio-Development-Platform/ESPressio-Observable
           ref: primitives_redesign
           path: ESPressio-Observable
+      - name: Check out ESPressio Primitive primitives redesign branch
+        uses: actions/checkout@v4
+        with:
+          repository: ESPressio-Development-Platform/ESPressio-Primitive
+          ref: primitives_redesign
+          path: ESPressio-Primitive
       - name: Check out ESPressio Persistence primitives redesign branch
         uses: actions/checkout@v4
         with:
