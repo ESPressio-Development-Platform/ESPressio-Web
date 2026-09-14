@@ -19,7 +19,6 @@ add_executable(
     espressio_web_websocket_event_bridge_tests
     test_websocket_event_bridge.cpp
     ../../ESPressio-Threads/src/ESPressio_Thread.cpp
-    ../../ESPressio-Threads/src/ESPressio_ThreadTerminationDispatcher.cpp
 )
 add_executable(espressio_web_http_tests test_http.cpp)
 add_executable(espressio_web_router_tests test_router.cpp)
@@ -34,7 +33,6 @@ add_executable(
     espressio_web_command_integration_tests
     test_web_command.cpp
     ../../ESPressio-Threads/src/ESPressio_Thread.cpp
-    ../../ESPressio-Threads/src/ESPressio_ThreadTerminationDispatcher.cpp
 )
 add_executable(espressio_web_state_integration_tests test_web_state.cpp)
 add_executable(
