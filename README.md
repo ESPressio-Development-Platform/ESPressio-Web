@@ -22,6 +22,24 @@ ESPressio-Web owns Web-domain vocabulary and behaviour: HTTP request/response se
 - A secure Web transport must not silently degrade into unauthenticated TLS. `WebTransportMode::Tls` requires an authenticated platform trust source or explicit caller-supplied CA/certificate material; optional client certificate/private-key identity is represented separately.
 - WebSocket client handshake headers are structured and bounded. Protocol-owned headers (`Host`, `Connection`, `Upgrade`, and `Sec-WebSocket-*`) cannot be overridden through the application extra-header surface.
 
+## Primitive redesign integration
+
+The `primitives_redesign` branch consumes the final Primitive-family contracts through optional adapters. Web remains a tooling/protocol surface; it does not become an owner of Primitive, Command, Event, State, Timing or transport semantics.
+
+Dynamic tooling follows these rules:
+
+- discovery begins from a frozen `Primitive::TypeDirectoryView`; discovery does not create a second mutable registry;
+- schema and constructibility information come from the final family descriptors and Serializable metadata rather than ad-hoc JSON or text registries;
+- a dynamically requested Command is constructed through its typed descriptor/factory and enters the normal Command admission/runtime path; Web never fabricates an Event as an execution shortcut;
+- Event discovery/submission uses the final Event descriptor/runtime contracts, including the Event family admission and delivery policy;
+- generic State tooling is read/inspect only. Owner-authoritative State can only be changed by its bound `StateOwner` path, never by a Web request merely because a descriptor is discoverable;
+- TypeDirectory/schema availability is not authorization. Applications must supply the applicable authorization/policy decision before a dynamic operation is admitted;
+- request bodies, type names, representations and constructed payloads are bounded before parsing/construction. Invalid schema/factory input produces an explicit protocol/tool failure; there is no unbounded heap fallback, raw reinterpretation or exception-driven retry loop;
+- WebSocket Primitive traffic uses the Sockets/A2/family binding boundaries. Web owns WebSocket framing/session behaviour, not Primitive transport semantics;
+- clock information exposed by Web uses the final Timing quality/evidence vocabulary; a synchronized-looking scalar timestamp is not treated as sufficient clock evidence by itself.
+
+The focused `primitives-redesign-*` workflows compile and exercise discovery, schema-driven construction, Command, Event, State, Sockets/WebSocket and Timing integration against the corresponding `primitives_redesign` provider branches.
+
 ## ESP32 concrete providers
 
 The current ESPressio-ESP32 working branch provides optional concrete implementations for the Web abstractions when ESPressio-Web is present:
@@ -62,4 +80,4 @@ The example deliberately keeps header lookup lazy and body/response I/O streamin
 
 ## Development
 
-The active tranche is documented chronologically in `ESPRESSIO_WEB_CORE_DEVELOPMENT.md`. The canonical Web working branch for this tranche is `work/web-core-tranche`; target implementation work remains on the corresponding architecture-package working branch.
+The legacy Web-core development history remains recorded in `ESPRESSIO_WEB_CORE_DEVELOPMENT.md`. The canonical branch for the Primitive Platform Redesign work described above is `primitives_redesign`; its focused workflows are the executable integration evidence for this tranche.
